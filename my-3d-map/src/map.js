@@ -1,3 +1,19 @@
+import markerIconDefault from './assets/leaflets/images/marker-icon.png';
+import markerShadow from './assets/leaflets/images/marker-shadow.png';
+import markerIconRed from './assets/leaflets/images/marker-icon-red.png';
+import markerIconBlue from './assets/leaflets/images/marker-icon-blue.png';
+import markerIconGreen from './assets/leaflets/images/marker-icon-green.png';
+import markerIconViolet from './assets/leaflets/images/marker-icon-violet.png';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const colorIcons = {
+  red: markerIconRed,
+  blue: markerIconBlue,
+  green: markerIconGreen,
+  violet: markerIconViolet
+};
+
 document.addEventListener("DOMContentLoaded", function() {
   var sensorColors = {
     'temperature': 'red',
@@ -7,8 +23,8 @@ document.addEventListener("DOMContentLoaded", function() {
   };
 
   L.Icon.Default.mergeOptions({
-    iconUrl: '/assets/leaflet/images/marker-icon.png',
-    shadowUrl: '/assets/leaflet/images/marker-shadow.png'
+    iconUrl: markerIconDefault,
+    shadowUrl: markerShadow
   });
 
   var map = L.map('map').setView([44.4349638, 26.045184], 13);
@@ -23,8 +39,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
   function getColoredIcon(color) {
     return new L.Icon({
-      iconUrl: '/assets/leaflet/images/marker-icon-' + color + '.png',
-      shadowUrl: '/assets/leaflet/images/marker-shadow.png',
+      iconUrl: colorIcons[color] || markerIconDefault,
+      shadowUrl: markerShadow,
       iconSize: [25, 41],
       iconAnchor: [12, 41],
       popupAnchor: [1, -34],
@@ -65,8 +81,10 @@ document.addEventListener("DOMContentLoaded", function() {
   var hourDisplay = document.getElementById("hour-display");
   var resetButton = document.getElementById("reset-button");
 
-  var defaultDate = datePicker.value;
-  var defaultHour = hourSlider.value;
+  const today = new Date().toISOString().split("T")[0];
+  datePicker.value = today;
+  const defaultHour = hourSlider.value;
+  hourDisplay.textContent = "${defaultHour}:00";
 
   function updateMarkers() {
     var selectedDate = datePicker.value;
@@ -79,9 +97,9 @@ document.addEventListener("DOMContentLoaded", function() {
   hourSlider.addEventListener("input", updateMarkers);
 
   resetButton.addEventListener("click", function() {
-    datePicker.value = defaultDate;
+    datePicker.value = today;
     hourSlider.value = defaultHour;
-    hourDisplay.textContent = defaultHour + ":00";
+    hourDisplay.textContent = "${defaultHour}:00";
     updateMarkers();
     map.setView([44.4268, 26.1025], 13);
   });
@@ -117,7 +135,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   let threeModule = null;
 
-  import('./threeview.js').then(module => {
+  import('./assets/threeview.js').then(module => {
     threeModule = module;
 
     window.addEventListener('mapMoved', (e) => {

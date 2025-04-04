@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Harta Senzori București</title>
+  <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="/src/assets/style.css" />
+</head>
+<body>
+  <h1>Vizualizare Senzori în București</h1>
+
+  <div id="controls">
+    <label for="date-picker">Selectează data:</label>
+    <input type="date" id="date-picker" />
+    <label for="hour-slider">Selectează ora:</label>
+    <input type="range" id="hour-slider" min="0" max="23" value="12" />
+    <span id="hour-display">12:00</span>
+    <button id="reset-button">Resetare</button>
+    <button id="toggle-view">Comută între 2D/3D</button>
+  </div>
+
+  <div id="mapContainer">
+    <div id="map"></div>
+  </div>
+
+  <div id="threeContainer" style="display: none;">
+    <canvas id="three-canvas"></canvas>
+  </div>
+
+  <script type="module" src="/src/map.js"></script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+// import { CSS2DRenderer } from '../../node_modules/three/examples/jsm/renderers/CSS2DRenderer.js';
 
 const CENTER_LON = 26.045184;
 const CENTER_LAT = 44.4349638;
@@ -82,10 +83,18 @@ export function initThreeScene() {
       animate();
     });
 
+  // const labelRenderer = new CSS2DRenderer();
+  // labelRenderer.setSize(window.innerWidth, window.innerHeight);
+  // labelRenderer.domElement.style.position = 'absolute';
+  // labelRenderer.domElement.style.top = '0px';
+  // document.body.appendChild(labelRenderer.domElement);
+
+
   function animate() {
     requestAnimationFrame(animate);
     controls.update();
     renderer.render(scene, camera);
+    // labelRenderer.render(scene, camera);
   }
 }
 
