@@ -110,11 +110,11 @@ document.addEventListener("DOMContentLoaded", function() {
     div.innerHTML += "<strong>Legend</strong><br>";
     for (var sensorType in sensorColors) {
       div.innerHTML +=
-        '<label>' +
-          '<input type="checkbox" class="sensor-toggle" data-sensor="' + sensorType + '" checked> ' +
-          '<img src="/assets/leaflet/images/marker-icon-' + sensorColors[sensorType] + '.png" width="12" height="20"> ' +
-          sensorType +
-        '</label><br>';
+        `<label>
+           <input type="checkbox" class="sensor-toggle" data-sensor="${sensorType}" checked>
+           <img src="${colorIcons[sensorColors[sensorType]]}" width="12" height="20">
+           ${sensorType}
+         </label><br>`;
     }
     return div;
   };
@@ -135,7 +135,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
   let threeModule = null;
 
-  import('./assets/threeview.js').then(module => {
+  import('./threeview.js').then(module => {
     threeModule = module;
 
     window.addEventListener('mapMoved', (e) => {

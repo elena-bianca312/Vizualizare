@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import buildingsUrl from './assets/data/buildings.geojson?url';
+
 // import { CSS2DRenderer } from '../../node_modules/three/examples/jsm/renderers/CSS2DRenderer.js';
 
 const CENTER_LON = 26.045184;
@@ -46,42 +48,51 @@ export function initThreeScene() {
   controls.update();
 
   // Fetch buildings
-  fetch("/assets/data/buildings.geojson")
-    .then((response) => response.json())
-    .then((geojson) => {
-      geojson.features.forEach((feature) => {
-        const coords = feature.geometry.coordinates[0];
-        const shape = new THREE.Shape();
+  fetch(buildingsUrl)
+  .then(res => res.json())
+  .then(geojson => {
+    geojson.features.forEach((feature) => {
+      const coords = feature.geometry.coordinates[0];
+      if (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1]) {
+        coords.push(coords[0]); // Close the shape
+      }
+      const points = coords.map(coord => {
+        const [lon, lat] = coord;
+        const px = (lon - CENTER_LON) * SCALE_FACTOR;
+        const py = (lat - CENTER_LAT) * SCALE_FACTOR;
+        return new THREE.Vector2(px, py);
+      });
+      const shape = new THREE.Shape(points);
 
-        coords.forEach((coord, index) => {
-          const [lon, lat] = coord;
-          const px = (lon - CENTER_LON) * SCALE_FACTOR;
-          const py = (lat - CENTER_LAT) * SCALE_FACTOR;
-          if (index === 0) shape.moveTo(px, py);
-          else shape.lineTo(px, py);
-        });
-
-        const levels = feature.properties["building:levels"];
-        let height = levels ? parseFloat(levels) * 3 : 10;
-        const geometry = new THREE.ExtrudeGeometry(shape, {
-          depth: height,
-          bevelEnabled: false,
-        });
-
-        const material = new THREE.MeshLambertMaterial({ color: 0xffffff });
-        const mesh = new THREE.Mesh(geometry, material);
-
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
-        const wireframe = new THREE.LineSegments(edges, lineMaterial);
-        mesh.add(wireframe);
-
-        scene.add(mesh);
+      const levels = feature.properties["building:levels"];
+      let height = levels ? parseFloat(levels) * 3 : 10;
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: height,
+        bevelEnabled: false,
+        steps: 1,
+        curveSegments: 1
       });
 
-      loadTiles(center, scene);
-      animate();
+      geometry.computeVertexNormals();
+
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        side: THREE.DoubleSide,
+        flatShading: true
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+
+      const edges = new THREE.EdgesGeometry(geometry);
+      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+      const wireframe = new THREE.LineSegments(edges, lineMaterial);
+      mesh.add(wireframe);
+
+      scene.add(mesh);
     });
+
+    loadTiles(center, scene);
+    animate();
+  });
 
   // const labelRenderer = new CSS2DRenderer();
   // labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -106,6 +117,7 @@ function loadTiles(center, scene) {
   const startY = centerTile.y - Math.floor(numTiles / 2);
 
   const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
 
   for (let i = 0; i < numTiles; i++) {
     for (let j = 0; j < numTiles; j++) {
@@ -130,10 +142,11 @@ function loadTiles(center, scene) {
           const material = new THREE.MeshBasicMaterial({
             map: texture,
             side: THREE.DoubleSide,
-            transparent: true
+            depthWrite: true
           });
 
           const tilePlane = new THREE.Mesh(geometry, material);
+
           tilePlane.position.set(centerX, centerY, -0.1); // Just below buildings
           scene.add(tilePlane);
         },
