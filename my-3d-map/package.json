@@ -12,6 +12,7 @@
     "vite": "^6.2.0"
   },
   "dependencies": {
+    "@tweenjs/tween.js": "^25.0.0",
     "leaflet": "^1.9.4",
     "three": "^0.175.0"
   }
