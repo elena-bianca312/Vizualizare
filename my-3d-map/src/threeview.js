@@ -1,14 +1,15 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import buildingsUrl from './assets/data/buildings.geojson?url';
-
-// import { CSS2DRenderer } from '../../node_modules/three/examples/jsm/renderers/CSS2DRenderer.js';
+import { setupBuildingInteraction } from "./buildinginteraction.js";
+import { Group } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
 
 const CENTER_LON = 26.045184;
 const CENTER_LAT = 44.4349638;
 const SCALE_FACTOR = 100000; // 1 unit = 0.00001 degrees
 
 export let camera, crosshair, controls;
+export const tweenGroup = new Group();
 
 export function initThreeScene() {
   const center = window.currentMapCenter || { lat: CENTER_LAT, lng: CENTER_LON };
@@ -47,6 +48,8 @@ export function initThreeScene() {
   controls.target.set(x, y, 0);
   controls.update();
 
+  setupBuildingInteraction(scene, camera, controls);
+
   // Fetch buildings
   fetch(buildingsUrl)
   .then(res => res.json())
@@ -81,6 +84,7 @@ export function initThreeScene() {
         flatShading: true
       });
       const mesh = new THREE.Mesh(geometry, material);
+      mesh.userData = { feature };
 
       const edges = new THREE.EdgesGeometry(geometry);
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
@@ -94,18 +98,12 @@ export function initThreeScene() {
     animate();
   });
 
-  // const labelRenderer = new CSS2DRenderer();
-  // labelRenderer.setSize(window.innerWidth, window.innerHeight);
-  // labelRenderer.domElement.style.position = 'absolute';
-  // labelRenderer.domElement.style.top = '0px';
-  // document.body.appendChild(labelRenderer.domElement);
-
-
   function animate() {
     requestAnimationFrame(animate);
+    const time = performance.now();
+    tweenGroup.update(time);
     controls.update();
     renderer.render(scene, camera);
-    // labelRenderer.render(scene, camera);
   }
 }
 
