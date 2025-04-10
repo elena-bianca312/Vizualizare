@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { Tween, Easing } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
+import { tweenGroup } from "./threeview.js";
+import { showBuildingDetailView } from "./buildingmenu.js";
 
 export function setupBuildingInteraction(scene, camera, controls) {
   const raycaster = new THREE.Raycaster();
@@ -36,6 +38,9 @@ export function setupBuildingInteraction(scene, camera, controls) {
     if (currentHighlight) {
       focusOnBuilding(currentHighlight);
       showBuildingInfo(currentHighlight.userData.feature);
+
+      // Detailed view of the building
+      showBuildingDetailView(currentHighlight, currentHighlight.userData.feature);
     }
   });
 
