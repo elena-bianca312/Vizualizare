@@ -79,6 +79,5 @@ export function setupBuildingInteraction(scene, camera, controls) {
       <h3>${feature.properties.name || 'Unnamed Building'}</h3>
       <p>Levels: ${feature.properties['building:levels'] || 'N/A'}</p>
     `;
-    infoPanel.style.display = 'block';
   }
 }

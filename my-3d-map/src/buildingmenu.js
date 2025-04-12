@@ -376,32 +376,19 @@ function focusOnFloor(floorIndex, totalLevels) {
  * Close the detail view
  */
 function closeDetailView() {
-  // Animate closing
-  if (currentDetailBuilding) {
-    new Tween(currentDetailBuilding.rotation)
-      .to({ y: Math.PI / 2 }, 500)
-      .easing(Easing.Quadratic.In)
-      .onComplete(() => {
-        detailContainer.style.display = 'none';
-        // Clear when animation completes
-        detailScene.remove(currentDetailBuilding);
-        floorPlanes.forEach(plane => detailScene.remove(plane));
-        floorPlanes = [];
-        currentDetailBuilding = null;
-      })
-      .start(detailTweenGroup);
-  } else {
+    // Immediate hide for better UX
     detailContainer.style.display = 'none';
-  }
-}
 
-/**
- * Add CSS styles for the detail view
- */
-function addDetailViewStyles() {
-  if (!document.getElementById('detail-view-styles')) {
-    const style = document.createElement('style');
-    style.id = 'detail-view-styles';
-    style.textContent = '<link rel="stylesheet" href="styles/buildingDetailView.css">';
-  }
+    // Cleanup 3D objects
+    if (currentDetailBuilding) {
+      detailScene.remove(currentDetailBuilding);
+      floorPlanes.forEach(plane => detailScene.remove(plane));
+      floorPlanes = [];
+      currentDetailBuilding = null;
+    }
+
+    // Reset camera position for next open
+    detailCamera.position.set(0, 0, 50);
+    detailControls.target.set(0, 0, 0);
+    detailControls.update();
 }
