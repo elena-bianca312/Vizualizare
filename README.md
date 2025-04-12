@@ -27,8 +27,12 @@ Ensure you have the following installed:
 ## How to Run the Project
 
 ### Backend Setup
+0. Create Python virtual environment:
+     ```
+     python -m venv venv
+     ```
 1. Activate the Python virtual environment:
-- On Windows: 
+- On Windows:
      ```
      venv\Scripts\activate
      ```
@@ -43,11 +47,15 @@ Ensure you have the following installed:
      ```
      cd my-3d-map
      ```
-2. Start the development server using Vite:
+2. (First time running the project) Add dependencies for Vite
+     ```
+     npm install
+     ```
+3. Start the development server using Vite:
      ```
      npm run dev
      ```
-3. Open your browser and go to the specified port (default: [http://localhost:5173/](http://localhost:5173/)).
+4. Open your browser and go to the specified port (default: [http://localhost:5173/](http://localhost:5173/)).
 
 ---
 
