@@ -22,12 +22,14 @@ export function setupBuildingInteraction(scene, camera, controls) {
     raycaster.setFromCamera(mouse, camera);
 
     // Only check building meshes (ignore wireframes and tiles)
-    const buildings = scene.children.filter(obj => obj.userData && obj.userData.feature);
-    const intersects = raycaster.intersectObjects(buildings, false);
+    const intersects = raycaster.intersectObjects(getAllBuildingMeshes(), false);
 
     if (intersects.length > 0) {
-      const building = intersects[0].object;
-      if (currentHighlight !== building) {
+      let building = intersects[0].object;
+      while (building && !building.userData?.feature) {
+        building = building.parent;
+      }
+      if (building && currentHighlight !== building) {
         resetHighlight();
         highlightBuilding(building);
       }
@@ -48,15 +50,28 @@ export function setupBuildingInteraction(scene, camera, controls) {
   });
 
   function highlightBuilding(building) {
-    originalMaterials.set(building, building.material.clone());
-    building.material.color.set(0x00ff00); // Highlight color
+    const allMeshes = [building, ...building.children.filter(c => c.isMesh)];
+
+    allMeshes.forEach(mesh => {
+      originalMaterials.set(mesh, mesh.material.clone());
+      mesh.material.color.set(0x00ff00); // Highlight color
+    });
+
     currentHighlight = building;
   }
 
   function resetHighlight() {
     if (currentHighlight) {
-      currentHighlight.material.copy(originalMaterials.get(currentHighlight));
-      originalMaterials.delete(currentHighlight);
+      const allMeshes = [currentHighlight, ...currentHighlight.children.filter(c => c.isMesh)];
+
+      allMeshes.forEach(mesh => {
+        const original = originalMaterials.get(mesh);
+        if (original) {
+          mesh.material.copy(original);
+          originalMaterials.delete(mesh);
+        }
+      });
+
       currentHighlight = null;
     }
   }
@@ -82,5 +97,21 @@ export function setupBuildingInteraction(scene, camera, controls) {
       <h3>${feature.properties.name || 'Unnamed Building'}</h3>
       <p>Levels: ${feature.properties['building:levels'] || 'N/A'}</p>
     `;
+  }
+
+  function getAllBuildingMeshes() {
+    const meshes = [];
+
+    scene.children.forEach(obj => {
+      if (obj.userData?.feature) {
+        obj.traverse(child => {
+          if (child.isMesh) {
+            meshes.push(child);
+          }
+        });
+      }
+    });
+
+    return meshes;
   }
 }

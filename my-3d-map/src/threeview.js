@@ -69,6 +69,7 @@ export function initThreeScene() {
 
       const levels = feature.properties["building:levels"];
       let height = levels ? parseFloat(levels) * 3 : 10;
+
       const geometry = new THREE.ExtrudeGeometry(shape, {
         depth: height,
         bevelEnabled: false,
@@ -83,14 +84,33 @@ export function initThreeScene() {
         side: THREE.DoubleSide,
         flatShading: true
       });
+
+
+      // Building mesh (walls)
       const mesh = new THREE.Mesh(geometry, material);
       mesh.userData = { feature };
 
+      // Roof mesh
+      const roofShape = new THREE.Shape(points);
+      const roofGeometry = new THREE.ShapeGeometry(roofShape);
+      const roofMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffcccc,
+        side: THREE.DoubleSide,
+        flatShading: true
+      });
+      const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+
+      // Position the roof at the top of the building
+      roof.position.set(0, 0, height);
+      mesh.add(roof);
+
+      // Optional wireframe
       const edges = new THREE.EdgesGeometry(geometry);
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
       const wireframe = new THREE.LineSegments(edges, lineMaterial);
       mesh.add(wireframe);
 
+      // Add to scene
       scene.add(mesh);
     });
 
