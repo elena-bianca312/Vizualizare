@@ -4,6 +4,7 @@ import { tweenGroup } from "./threeview.js";
 import { showBuildingDetailView } from "./buildingmenu.js";
 
 export function setupBuildingInteraction(scene, camera, controls) {
+  const canvas = document.getElementById("three-canvas");
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
   let currentHighlight = null;
@@ -11,9 +12,11 @@ export function setupBuildingInteraction(scene, camera, controls) {
 
   // Hover effect
   window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+
     mouse.set(
-      (event.clientX / window.innerWidth) * 2 - 1,
-      -(event.clientY / window.innerHeight) * 2 + 1
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1
     );
 
     raycaster.setFromCamera(mouse, camera);

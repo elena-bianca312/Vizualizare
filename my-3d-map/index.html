@@ -7,37 +7,41 @@
   <link rel="stylesheet" href="/src/assets/styles/map_style.css" />
 </head>
 <body>
-  <h1>Vizualizare Senzori în București</h1>
+    <div id="uiWrapper">
+        <h1>Vizualizare Senzori în București</h1>
 
-  <div id="controls">
-    <label for="date-picker">Selectează data:</label>
-    <input type="date" id="date-picker" />
-    <label for="hour-slider">Selectează ora:</label>
-    <input type="range" id="hour-slider" min="0" max="23" value="12" />
-    <span id="hour-display">12:00</span>
-    <button id="reset-button">Resetare</button>
-    <button id="toggle-view">Comută între 2D/3D</button>
-  </div>
+        <div id="controls">
+            <label for="date-picker">Selectează data:</label>
+            <input type="date" id="date-picker" />
+            <label for="hour-slider">Selectează ora:</label>
+            <input type="range" id="hour-slider" min="0" max="23" value="12" />
+            <span id="hour-display">12:00</span>
+            <button id="reset-button">Resetare</button>
+            <button id="toggle-view">Comută între 2D/3D</button>
+        </div>
+    </div>
 
-  <div id="mapContainer">
-    <div id="map"></div>
-  </div>
+    <div id="viewContainer">
+        <div id="mapContainer">
+        <div id="map"></div>
+        </div>
 
-  <div id="threeContainer">
-    <canvas id="three-canvas"></canvas>
-  </div>
+        <div id="threeContainer">
+            <canvas id="three-canvas"></canvas>
+        </div>
 
-  <div id="building-info"
-  style="display: none;
-         position: fixed;
-         top: 20px;
-         right: 20px;
-         background: rgba(255,255,255,0.95);
-         padding: 20px;
-         border-radius: 8px;
-         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-         z-index: 1000;">
-  </div>
+        <div id="building-info"
+        style="display: none;
+             position: fixed;
+             top: 20px;
+             right: 20px;
+             background: rgba(255,255,255,0.95);
+             padding: 20px;
+             border-radius: 8px;
+             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+             z-index: 1000;">
+        </div>
+    </div>
 
   <script type="module" src="/src/map.js"></script>
 </body>
