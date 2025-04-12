@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", function() {
     hourSlider.value = defaultHour;
     hourDisplay.textContent = "${defaultHour}:00";
     updateMarkers();
-    map.setView([44.4268, 26.1025], 13);
+    map.setView([44.4349638, 26.045184], 13);
   });
 
   var legendControl = L.control({ position: 'bottomright' });
