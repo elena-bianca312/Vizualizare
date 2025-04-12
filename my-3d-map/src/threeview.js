@@ -27,10 +27,10 @@ export function initThreeScene() {
   camera.lookAt(x, y, 0);
   camera.up.set(0, 1, 0);
 
-  const renderer = new THREE.WebGLRenderer({
-    canvas: document.getElementById("three-canvas"),
-  });
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  const canvas = document.getElementById("three-canvas");
+  const renderer = new THREE.WebGLRenderer({ canvas });
+  renderer.setSize(canvas.offsetWidth, canvas.offsetHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
   renderer.setClearColor(0xf5f5f5);
 
   scene.add(new THREE.AmbientLight(0x888888));
@@ -57,7 +57,7 @@ export function initThreeScene() {
     geojson.features.forEach((feature) => {
       const coords = feature.geometry.coordinates[0];
       if (coords[0][0] !== coords[coords.length - 1][0] || coords[0][1] !== coords[coords.length - 1][1]) {
-        coords.push(coords[0]); // Close the shape
+        coords.push(coords[0]);
       }
       const points = coords.map(coord => {
         const [lon, lat] = coord;
@@ -105,6 +105,14 @@ export function initThreeScene() {
     controls.update();
     renderer.render(scene, camera);
   }
+
+  window.addEventListener('resize', () => {
+    const width = canvas.offsetWidth;
+    const height = canvas.offsetHeight;
+    renderer.setSize(width, height);
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+  });
 }
 
 function loadTiles(center, scene) {
