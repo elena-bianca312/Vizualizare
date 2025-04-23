@@ -2,6 +2,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Tween, Easing, Group } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
+import { clearSelectedBuilding } from "./buildinginteraction.js";
 
 // For animation handling
 const detailTweenGroup = new Group();
@@ -152,8 +153,6 @@ function onDetailWindowResize() {
  * @param {Object} feature - GeoJSON feature data
  */
 export function showBuildingDetailView(building, feature) {
-  initBuildingDetailView(); // Ensure it's initialized
-
   // Clear existing building if any
   if (currentDetailBuilding) {
     detailScene.remove(currentDetailBuilding);
@@ -378,6 +377,7 @@ function focusOnFloor(floorIndex, totalLevels) {
 function closeDetailView() {
     // Immediate hide for better UX
     detailContainer.style.display = 'none';
+    clearSelectedBuilding();
 
     // Cleanup 3D objects
     if (currentDetailBuilding) {

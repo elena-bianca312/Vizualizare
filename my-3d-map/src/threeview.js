@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import buildingsUrl from './assets/data/buildings.geojson?url';
 import { setupBuildingInteraction } from "./buildinginteraction.js";
 import { Group } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
+import {initBuildingDetailView} from "./buildingmenu.js";
 
 const CENTER_LON = 26.045184;
 const CENTER_LAT = 44.4349638;
@@ -133,6 +134,8 @@ export function initThreeScene() {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   });
+
+  initBuildingDetailView(); // Ensure detailed view
 }
 
 function loadTiles(center, scene) {
