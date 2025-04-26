@@ -70,9 +70,6 @@ export function initBuildingDetailView() {
 
     // Set up THREE.js scene
     setupDetailScene();
-
-    // Add CSS styles
-    addDetailViewStyles();
   }
 }
 

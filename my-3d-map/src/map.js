@@ -179,16 +179,16 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   map.on('move', () => {
-  const center = map.getCenter();
-  const zoom = map.getZoom();
-  window.currentMapCenter = center;
-  window.currentMapZoom = zoom;
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    window.currentMapCenter = center;
+    window.currentMapZoom = zoom;
 
-  const event = new CustomEvent('mapMoved', {
-    detail: { center, zoom }
+    const event = new CustomEvent('mapMoved', {
+      detail: { center, zoom }
+    });
+    window.dispatchEvent(event);
   });
-  window.dispatchEvent(event);
-});
 
 
 });

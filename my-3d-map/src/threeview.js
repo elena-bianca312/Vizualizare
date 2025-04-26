@@ -18,11 +18,10 @@ export function initThreeScene() {
   const y = (center.lat - CENTER_LAT) * SCALE_FACTOR;
 
   const scene = new THREE.Scene();
+  const buildingMeshes = []; // <-- Important, collect them!
+
   camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    5000
+    75, window.innerWidth / window.innerHeight, 0.1, 5000
   );
   camera.position.set(x, y, 1000);
   camera.lookAt(x, y, 0);
@@ -69,7 +68,7 @@ export function initThreeScene() {
       const shape = new THREE.Shape(points);
 
       const levels = feature.properties["building:levels"];
-      let height = levels ? parseFloat(levels) * 3 : 10;
+      const height = levels ? parseFloat(levels) * 3 : 10;
 
       const geometry = new THREE.ExtrudeGeometry(shape, {
         depth: height,
@@ -80,11 +79,7 @@ export function initThreeScene() {
 
       geometry.computeVertexNormals();
 
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        side: THREE.DoubleSide,
-        flatShading: true
-      });
+      const material = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, flatShading: true });
 
 
       // Building mesh (walls)
@@ -113,16 +108,30 @@ export function initThreeScene() {
 
       // Add to scene
       scene.add(mesh);
+
+      buildingMeshes.push(mesh); // Collect here!!
     });
 
     loadTiles(center, scene);
+
+    fetchIndoorSensors()
+    .then(indoorSensors => {
+      if (indoorSensors && Array.isArray(indoorSensors)) {
+        console.log("Indoor sensors fetched:", indoorSensors);
+        addSensorSpheres(scene, buildingMeshes, indoorSensors);
+      } else {
+        console.error("Indoor sensors not available or invalid format:", indoorSensors);
+      }
+    })
+    .catch(error => {
+      console.error("Failed to fetch indoor sensors:", error);
+    });
+
     animate();
   });
 
   function animate() {
     requestAnimationFrame(animate);
-    const time = performance.now();
-    tweenGroup.update(time);
     controls.update();
     renderer.render(scene, camera);
   }
@@ -135,7 +144,7 @@ export function initThreeScene() {
     camera.updateProjectionMatrix();
   });
 
-  initBuildingDetailView(); // Ensure detailed view
+  initBuildingDetailView();
 }
 
 function loadTiles(center, scene) {
@@ -209,4 +218,52 @@ function tileXYToBounds(x, y, zoom) {
 function tileYToLat(y, zoom) {
   const n = Math.PI - (2 * Math.PI * y) / Math.pow(2, zoom);
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+}
+
+function addSensorSpheres(scene, buildingMeshes, indoorSensors) {
+  const SENSOR_RADIUS = 5;
+
+  buildingMeshes.forEach(building => {
+    const bbox = new THREE.Box3().setFromObject(building);
+    const center = bbox.getCenter(new THREE.Vector3());
+    const buildingCenter = new THREE.Vector2(center.x, center.y);
+
+    // Find nearby sensors (for simplicity, within some distance threshold)
+    // TODO - make spheres take into account building not center + distance (50)
+    const nearbySensors = indoorSensors.filter(sensor => {
+      const sensorPos = new THREE.Vector2(
+        (sensor.lon - CENTER_LON) * SCALE_FACTOR,
+        (sensor.lat - CENTER_LAT) * SCALE_FACTOR
+      );
+      return buildingCenter.distanceTo(sensorPos) < 50; // Distance threshold (tweak this number)
+    });
+
+    if (nearbySensors.length > 0) {
+      const sphereGeometry = new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16);
+      const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+
+      // Place sphere above the building
+      sphere.position.set(
+        center.x,
+        center.y,
+        bbox.max.z + 20 // On top of the roof
+      );
+
+      building.add(sphere);
+    }
+  });
+}
+
+
+function fetchIndoorSensors() {
+  return fetch('/indoor_sensors')
+    .then(response => {
+      if (!response.ok) throw new Error("Failed to fetch sensors: " + response.status);
+      return response.json();
+    })
+    .catch(error => {
+      console.error("Fetch error:", error);
+      return [];
+    });
 }

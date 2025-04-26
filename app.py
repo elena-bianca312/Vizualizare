@@ -1,3 +1,4 @@
+import numpy as np
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
@@ -19,6 +20,13 @@ sensor_colors = {
     'air_quality': 'green',
     'wind_speed': 'violet'
 }
+
+@app.route('/indoor_sensors')
+def get_indoor_sensors():
+    df = pd.read_csv("bucharest_sensor_data_with_location2.csv")
+    df = df.replace({np.nan: None})
+    data = df.to_dict(orient='records')
+    return jsonify(data)
 
 @app.route('/get_markers')
 def get_markers():

@@ -111,7 +111,6 @@ export function setupBuildingInteraction(scene, camera, controls) {
 
   // Click handling
   canvas.addEventListener('click', (event) => {
-    debugger;
     if (isMouseOverDetailView(event)) return;
 
     if (currentHighlight) {
