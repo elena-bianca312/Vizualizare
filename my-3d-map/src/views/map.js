@@ -1,9 +1,11 @@
-import markerIconDefault from './assets/leaflets/images/marker-icon.png';
-import markerShadow from './assets/leaflets/images/marker-shadow.png';
-import markerIconRed from './assets/leaflets/images/marker-icon-red.png';
-import markerIconBlue from './assets/leaflets/images/marker-icon-blue.png';
-import markerIconGreen from './assets/leaflets/images/marker-icon-green.png';
-import markerIconViolet from './assets/leaflets/images/marker-icon-violet.png';
+// 2D Map
+
+import markerIconDefault from '../assets/leaflets/images/marker-icon.png';
+import markerShadow from '../assets/leaflets/images/marker-shadow.png';
+import markerIconRed from '../assets/leaflets/images/marker-icon-red.png';
+import markerIconBlue from '../assets/leaflets/images/marker-icon-blue.png';
+import markerIconGreen from '../assets/leaflets/images/marker-icon-green.png';
+import markerIconViolet from '../assets/leaflets/images/marker-icon-violet.png';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 

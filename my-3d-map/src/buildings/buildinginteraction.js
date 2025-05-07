@@ -1,6 +1,8 @@
+// Click & hover interaction for buildings
+
 import * as THREE from "three";
-import { Tween, Easing } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
-import { tweenGroup } from "./threeview.js";
+import { Tween, Easing } from "@tweenjs/tween.js";
+import { tweenGroup } from "../views/threeview.js";
 import { showBuildingDetailView } from "./buildingmenu.js";
 
 

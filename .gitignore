@@ -31,3 +31,5 @@ build/
 # Coverage reports
 htmlcov/
 .coverage
+
+node_modules/

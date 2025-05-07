@@ -1,9 +1,11 @@
+// 3D Map
+
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import buildingsUrl from './assets/data/buildings.geojson?url';
-import { setupBuildingInteraction } from "./buildinginteraction.js";
-import { Group } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
-import {initBuildingDetailView} from "./buildingmenu.js";
+import buildingsUrl from '../assets/data/buildings.geojson?url';
+import { setupBuildingInteraction } from "../buildings/buildinginteraction.js";
+import { Group } from "@tweenjs/tween.js";
+import {initBuildingDetailView} from "../buildings/buildingmenu.js";
 
 const CENTER_LON = 26.045184;
 const CENTER_LAT = 44.4349638;

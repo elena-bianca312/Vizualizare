@@ -1,8 +1,13 @@
-// buildingDetailView.js
+// Core menu container for building details
+
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Tween, Easing, Group } from "../node_modules/@tweenjs/tween.js/dist/tween.esm.js";
+import { Tween, Easing, Group } from "@tweenjs/tween.js";
 import { clearSelectedBuilding } from "./buildinginteraction.js";
+import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
+import { fetchBuildingSensors } from '../sensors/dataFetcher.js';
+import { groupByFloor } from '../sensors/dataProcessor.js';
+import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
 
 // For animation handling
 const detailTweenGroup = new Group();
@@ -17,9 +22,8 @@ let floorPlanes = [];
  * Initialize the detail view container and THREE.js scene
  */
 export function initBuildingDetailView() {
-  // Create container if it doesn't exist
   if (!document.getElementById('building-detail-view')) {
-    // Create main container
+    // Main container
     detailContainer = document.createElement('div');
     detailContainer.id = 'building-detail-view';
     detailContainer.style.position = 'fixed';
@@ -33,7 +37,7 @@ export function initBuildingDetailView() {
     detailContainer.style.display = 'none';
     detailContainer.style.flexDirection = 'column';
 
-    // Add close button
+    // Close button
     const closeButton = document.createElement('button');
     closeButton.textContent = 'Close';
     closeButton.style.position = 'absolute';
@@ -104,11 +108,9 @@ function setupDetailScene() {
 
   // Lighting
   detailScene.add(new THREE.AmbientLight(0xaaaaaa));
-
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
   directionalLight.position.set(1, 1, 1);
   detailScene.add(directionalLight);
-
   const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
   backLight.position.set(-1, 0.5, -1);
   detailScene.add(backLight);
@@ -180,7 +182,6 @@ export function showBuildingDetailView(building, feature) {
   const bbox = new THREE.Box3().setFromObject(currentDetailBuilding);
   const center = bbox.getCenter(new THREE.Vector3());
   const size = bbox.getSize(new THREE.Vector3());
-
   currentDetailBuilding.position.sub(center);
 
   // Add floor demarcation
@@ -196,11 +197,11 @@ export function showBuildingDetailView(building, feature) {
   detailControls.target.set(0, 0, 0);
   detailControls.update();
 
-  // Update info panel
-  updateDetailInfo(feature);
-
   // Display the container
   detailContainer.style.display = 'flex';
+
+  // Update info panel
+  updateDetailInfo(feature);
 
   // Animate opening
   currentDetailBuilding.rotation.y = -Math.PI / 2;
@@ -253,18 +254,21 @@ function addFloorDemarcation(building, feature) {
 }
 
 /**
- * Update information panel with building details
+ * Update information panel with building details and sensor charts
  * @param {Object} feature - GeoJSON feature data
  */
 function updateDetailInfo(feature) {
   const infoPanel = document.getElementById('building-detail-info');
-
   // Get properties from feature
   const name = feature.properties.name || 'Unnamed Building';
-  const levels = feature.properties["building:levels"] || 'N/A';
+  const levels = feature.properties["building:levels"] || 1;
   const buildingType = feature.properties.building || 'General';
   const address = feature.properties.addr?.street || 'No address available';
 
+  // Clear previous charts
+  destroyCharts();
+
+  // Basic building info
   infoPanel.innerHTML = `
     <h2>${name}</h2>
     <div class="building-details">
@@ -281,111 +285,111 @@ function updateDetailInfo(feature) {
         <span class="detail-value">${address}</span>
       </div>
     </div>
-
-    <div class="floor-controls">
-      <h3>Floor Navigation</h3>
-      <div class="floor-buttons">
-        ${generateFloorButtons(levels)}
-      </div>
+    <div class="floor-container">
+      ${createFloorTabs(levels)}
+      ${createFloorSections(levels)}
     </div>
   `;
 
-  // Add event listeners to floor buttons
-  const floorButtons = infoPanel.querySelectorAll('.floor-btn');
-  floorButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      // Highlight selected button
-      floorButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  initializeFloorNavigation();
+  loadAndRenderSensorData(feature);
 
-      // Focus camera on selected floor
-      const floorIndex = parseInt(btn.dataset.floor);
-      focusOnFloor(floorIndex, levels);
+  // const testChartDiv = document.createElement('div');
+  // testChartDiv.style.marginTop = '30px';
+  // testChartDiv.innerHTML = `<h3>Test Chart</h3><canvas id="myTestChart" width="400" height="200"></canvas>`;
+  // infoPanel.appendChild(testChartDiv);
+
+  // // Generate random data
+  // const labels = ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'];
+  // const data = {
+  //   labels: labels,
+  //   datasets: [{
+  //     label: 'Random Data',
+  //     data: labels.map(() => Math.floor(Math.random() * 100)),
+  //     backgroundColor: [
+  //       'rgba(255, 99, 132, 0.2)',
+  //       'rgba(54, 162, 235, 0.2)',
+  //       'rgba(255, 206, 86, 0.2)',
+  //       'rgba(75, 192, 192, 0.2)',
+  //       'rgba(153, 102, 255, 0.2)',
+  //       'rgba(255, 159, 64, 0.2)'
+  //     ],
+  //     borderColor: [
+  //       'rgba(255,99,132,1)',
+  //       'rgba(54, 162, 235, 1)',
+  //       'rgba(255, 206, 86, 1)',
+  //       'rgba(75, 192, 192, 1)',
+  //       'rgba(153, 102, 255, 1)',
+  //       'rgba(255, 159, 64, 1)'
+  //     ],
+  //     borderWidth: 1
+  //   }]
+  // };
+
+  // const ctx = document.getElementById('myTestChart').getContext('2d');
+  // new Chart(ctx, {
+  //   type: 'bar',
+  //   data: data,
+  //   options: {
+  //     responsive: true,
+  //     scales: {
+  //       y: { beginAtZero: true }
+  //     }
+  //   }
+  // });
+}
+
+
+
+/**
+ * Fetch and render sensor charts for the selected building
+ */
+async function loadAndRenderSensorData(feature) {
+  try {
+    const sensors = await fetchBuildingSensors(
+      feature.geometry.coordinates[0][0][1],
+      feature.geometry.coordinates[0][0][0]
+    );
+
+    const floorData = groupByFloor(sensors);
+
+    Object.entries(floorData).forEach(([floor, sensors]) => {
+      const container = document.getElementById(`charts-floor-${floor}`);
+      if (container) {
+        sensors.forEach(sensor => {
+          createSensorChart(container, sensor);
+        });
+      }
     });
-  });
-}
-
-/**
- * Generate HTML for floor buttons
- * @param {number} levels - Number of floors
- * @returns {string} HTML for floor buttons
- */
-function generateFloorButtons(levels) {
-  if (!levels || levels === 'N/A') return '<p>Floor information not available</p>';
-
-  let html = '';
-  for (let i = 1; i <= parseInt(levels); i++) {
-    html += `<button class="floor-btn" data-floor="${i}">Floor ${i}</button>`;
+  } catch (error) {
+    console.error('Failed to load sensor data:', error);
+    document.querySelectorAll('.chart-container').forEach(container => {
+      container.innerHTML = '<p>No sensor data available</p>';
+    });
   }
-  return html;
-}
-
-/**
- * Focus camera on specific floor
- * @param {number} floorIndex - Floor index (1-based)
- * @param {number} totalLevels - Total number of floors
- */
-function focusOnFloor(floorIndex, totalLevels) {
-  if (!currentDetailBuilding) return;
-
-  const bbox = new THREE.Box3().setFromObject(currentDetailBuilding);
-  const size = bbox.getSize(new THREE.Vector3());
-  const min = bbox.min;
-
-  const floorHeight = size.z / parseInt(totalLevels);
-  const targetZ = min.z + (floorIndex - 0.5) * floorHeight;
-
-  // Highlight the selected floor plane
-  floorPlanes.forEach(plane => {
-    if (plane.userData.floor === floorIndex) {
-      plane.material.opacity = 0.4;
-      plane.material.color.set(0x88aaff);
-    } else {
-      plane.material.opacity = 0.15;
-      plane.material.color.set(0x6688cc);
-    }
-  });
-
-  // Animate camera to focus on this floor
-  const cameraDistance = Math.max(size.x, size.y) * 1.5;
-
-  const targetPosition = new THREE.Vector3(
-    cameraDistance,
-    cameraDistance/2,
-    targetZ
-  );
-
-  const targetLookAt = new THREE.Vector3(0, 0, targetZ);
-
-  new Tween(detailCamera.position)
-    .to(targetPosition, 800)
-    .easing(Easing.Quadratic.InOut)
-    .start(detailTweenGroup);
-
-  new Tween(detailControls.target)
-    .to(targetLookAt, 800)
-    .easing(Easing.Quadratic.InOut)
-    .start(detailTweenGroup);
 }
 
 /**
  * Close the detail view
  */
 function closeDetailView() {
-    // Immediate hide for better UX
-    detailContainer.style.display = 'none';
-    clearSelectedBuilding();
+  // Immediate hide for better UX
+  detailContainer.style.display = 'none';
+  clearSelectedBuilding();
 
-    // Cleanup 3D objects
-    if (currentDetailBuilding) {
-      detailScene.remove(currentDetailBuilding);
-      floorPlanes.forEach(plane => detailScene.remove(plane));
-      floorPlanes = [];
-      currentDetailBuilding = null;
-    }
+  // Cleanup 3D objects
+  if (currentDetailBuilding) {
+    detailScene.remove(currentDetailBuilding);
+    floorPlanes.forEach(plane => detailScene.remove(plane));
+    floorPlanes = [];
+    currentDetailBuilding = null;
+  }
 
-    // Reset camera position for next open
-    detailCamera.position.set(0, 0, 50);
-    detailControls.target.set(0, 0, 0);
-    detailControls.update();
+  // Destroy all charts
+  destroyCharts();
+
+  // Reset camera position for next open
+  detailCamera.position.set(0, 0, 50);
+  detailControls.target.set(0, 0, 0);
+  detailControls.update();
 }
