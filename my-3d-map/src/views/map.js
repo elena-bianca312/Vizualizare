@@ -157,28 +157,38 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 
-  document.getElementById("toggle-view").addEventListener("click", () => {
-    const center = map.getCenter();
+  document.getElementById('toggle-view').addEventListener('click', () => {
+  const mapContainer = document.getElementById('mapContainer');
+  const threeContainer = document.getElementById('threeContainer');
+
+  const is3D = threeContainer.style.pointerEvents === 'auto';
+
+  const center = map.getCenter();
     const zoom = map.getZoom();
 
     window.currentMapCenter = center;
     window.currentMapZoom = zoom;
 
-    const mapDiv = document.getElementById("mapContainer");
-    const threeDiv = document.getElementById("threeContainer");
+  if (is3D) {
+    // Switch to 2D
+    threeContainer.style.pointerEvents = 'none';
+    threeContainer.style.visibility = 'hidden';
 
-    if (mapDiv.style.display === "none") {
-      mapDiv.style.display = "block";
-      threeDiv.style.display = "none";
-    } else {
-      mapDiv.style.display = "none";
-      threeDiv.style.display = "block";
-      //if (!window.threeLoaded) {
-        threeModule.initThreeScene();
-        window.threeLoaded = true;
-      //}
-    }
-  });
+    mapContainer.style.pointerEvents = 'auto';
+    mapContainer.style.visibility = 'visible';
+
+    map.invalidateSize();
+  } else {
+    // Switch to 3D
+    threeContainer.style.pointerEvents = 'auto';
+    threeContainer.style.visibility = 'visible';
+
+    mapContainer.style.pointerEvents = 'none';
+    mapContainer.style.visibility = 'hidden';
+    threeModule.initThreeScene();
+    window.threeLoaded = true;
+  }
+});
 
   map.on('move', () => {
     const center = map.getCenter();
