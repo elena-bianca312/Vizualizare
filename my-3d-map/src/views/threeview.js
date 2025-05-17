@@ -20,7 +20,7 @@ export function initThreeScene() {
   const y = (center.lat - CENTER_LAT) * SCALE_FACTOR;
 
   const scene = new THREE.Scene();
-  const buildingMeshes = []; // <-- Important, collect them!
+  const buildingData = []; // store mesh + shape for spatial checks (used at indoor sensors)
 
   camera = new THREE.PerspectiveCamera(
     75, window.innerWidth / window.innerHeight, 0.1, 5000
@@ -111,7 +111,7 @@ export function initThreeScene() {
       // Add to scene
       scene.add(mesh);
 
-      buildingMeshes.push(mesh); // Collect here!!
+      buildingData.push({ mesh, shape });
     });
 
     loadTiles(center, scene);
@@ -120,7 +120,7 @@ export function initThreeScene() {
     .then(indoorSensors => {
       if (indoorSensors && Array.isArray(indoorSensors)) {
         console.log("Indoor sensors fetched:", indoorSensors);
-        addSensorSpheres(scene, buildingMeshes, indoorSensors);
+        addSensorSpheres(scene, buildingData, indoorSensors);
       } else {
         console.error("Indoor sensors not available or invalid format:", indoorSensors);
       }
@@ -222,41 +222,49 @@ function tileYToLat(y, zoom) {
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 }
 
-function addSensorSpheres(scene, buildingMeshes, indoorSensors) {
+function addSensorSpheres(scene, buildingData, indoorSensors) {
   const SENSOR_RADIUS = 5;
 
-  buildingMeshes.forEach(building => {
-    const bbox = new THREE.Box3().setFromObject(building);
-    const center = bbox.getCenter(new THREE.Vector3());
-    const buildingCenter = new THREE.Vector2(center.x, center.y);
+  buildingData.forEach(({ mesh, shape }) => {
+    const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
 
-    // Find nearby sensors (for simplicity, within some distance threshold)
-    // TODO - make spheres take into account building not center + distance (50)
-    const nearbySensors = indoorSensors.filter(sensor => {
-      const sensorPos = new THREE.Vector2(
-        (sensor.lon - CENTER_LON) * SCALE_FACTOR,
-        (sensor.lat - CENTER_LAT) * SCALE_FACTOR
-      );
-      return buildingCenter.distanceTo(sensorPos) < 50; // Distance threshold (tweak this number)
+    const localSensors = indoorSensors.filter(sensor => {
+      const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
+      const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+      return isPointInPolygon(polygon, new THREE.Vector2(px, py));
     });
 
-    if (nearbySensors.length > 0) {
-      const sphereGeometry = new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16);
-      const sphereMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    if (localSensors.length > 0) {
+      const bbox = new THREE.Box3().setFromObject(mesh);
+      const center = bbox.getCenter(new THREE.Vector3());
 
-      // Place sphere above the building
-      sphere.position.set(
-        center.x,
-        center.y,
-        bbox.max.z + 20 // On top of the roof
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0xff0000 })
       );
 
-      building.add(sphere);
+      sphere.position.set(center.x, center.y, bbox.max.z + 20);
+      sphere.scale.setScalar(1 + localSensors.length * 0.2);
+
+      mesh.add(sphere);
     }
   });
 }
 
+function isPointInPolygon(polygon, point) {
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x, yi = polygon[i].y;
+    const xj = polygon[j].x, yj = polygon[j].y;
+
+    const intersect = ((yi > point.y) !== (yj > point.y)) &&
+                      (point.x < (xj - xi) * (point.y - yi) / (yj - yi + 0.000001) + xi);
+
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
 
 function fetchIndoorSensors() {
   return fetch('/indoor_sensors')
