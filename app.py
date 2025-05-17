@@ -23,7 +23,7 @@ sensor_colors = {
 
 @app.route('/indoor_sensors')
 def get_indoor_sensors():
-    df = pd.read_csv("bucharest_sensor_data_with_location3.csv")
+    df = pd.read_csv("bucharest_sensor_data_with_location2.csv")
     df = df.replace({np.nan: None})
     data = df.to_dict(orient='records')
     return jsonify(data)

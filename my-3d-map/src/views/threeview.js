@@ -234,6 +234,8 @@ function addSensorSpheres(scene, buildingData, indoorSensors) {
       return isPointInPolygon(polygon, new THREE.Vector2(px, py));
     });
 
+    mesh.userData.indoorSensors = localSensors;
+
     if (localSensors.length > 0) {
       const bbox = new THREE.Box3().setFromObject(mesh);
       const center = bbox.getCenter(new THREE.Vector3());
@@ -250,6 +252,53 @@ function addSensorSpheres(scene, buildingData, indoorSensors) {
     }
   });
 }
+
+
+// IMPORTANTA PENTRU DEBUG
+/*function addSensorSpheres(scene, buildingData, indoorSensors) {
+  const SENSOR_RADIUS = 5;
+  const DEBUG_RADIUS = 2;
+
+  indoorSensors.forEach(sensor => {
+    const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
+    const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+
+    const debugSphere = new THREE.Mesh(
+      new THREE.SphereGeometry(DEBUG_RADIUS, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x0000ff })
+    );
+    debugSphere.position.set(px, py, 1);
+    scene.add(debugSphere);
+  });
+
+  buildingData.forEach(({ mesh, shape }) => {
+    const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
+
+    const localSensors = indoorSensors.filter(sensor => {
+      const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
+      const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+      return isPointInPolygon(polygon, new THREE.Vector2(px, py));
+    });
+
+    mesh.userData.indoorSensors = localSensors;
+
+    if (localSensors.length > 0) {
+      const bbox = new THREE.Box3().setFromObject(mesh);
+      const center = bbox.getCenter(new THREE.Vector3());
+
+      const sensorSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+      );
+
+      sensorSphere.position.set(center.x, center.y, bbox.max.z + 20);
+      sensorSphere.scale.setScalar(1 + localSensors.length * 0.2);
+
+      mesh.add(sensorSphere);
+    }
+  });
+}*/
+
 
 function isPointInPolygon(polygon, point) {
   let inside = false;

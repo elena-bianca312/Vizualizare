@@ -3,10 +3,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Tween, Easing, Group } from "@tweenjs/tween.js";
-import { clearSelectedBuilding } from "./buildinginteraction.js";
+import {clearSelectedBuilding, selectedBuilding} from "./buildinginteraction.js";
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
-import { fetchBuildingSensors } from '../sensors/dataFetcher.js';
-import { groupByFloor } from '../sensors/dataProcessor.js';
 import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
 
 // For animation handling
@@ -293,50 +291,6 @@ function updateDetailInfo(feature) {
 
   initializeFloorNavigation();
   loadAndRenderSensorData(feature);
-
-  // const testChartDiv = document.createElement('div');
-  // testChartDiv.style.marginTop = '30px';
-  // testChartDiv.innerHTML = `<h3>Test Chart</h3><canvas id="myTestChart" width="400" height="200"></canvas>`;
-  // infoPanel.appendChild(testChartDiv);
-
-  // // Generate random data
-  // const labels = ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'];
-  // const data = {
-  //   labels: labels,
-  //   datasets: [{
-  //     label: 'Random Data',
-  //     data: labels.map(() => Math.floor(Math.random() * 100)),
-  //     backgroundColor: [
-  //       'rgba(255, 99, 132, 0.2)',
-  //       'rgba(54, 162, 235, 0.2)',
-  //       'rgba(255, 206, 86, 0.2)',
-  //       'rgba(75, 192, 192, 0.2)',
-  //       'rgba(153, 102, 255, 0.2)',
-  //       'rgba(255, 159, 64, 0.2)'
-  //     ],
-  //     borderColor: [
-  //       'rgba(255,99,132,1)',
-  //       'rgba(54, 162, 235, 1)',
-  //       'rgba(255, 206, 86, 1)',
-  //       'rgba(75, 192, 192, 1)',
-  //       'rgba(153, 102, 255, 1)',
-  //       'rgba(255, 159, 64, 1)'
-  //     ],
-  //     borderWidth: 1
-  //   }]
-  // };
-
-  // const ctx = document.getElementById('myTestChart').getContext('2d');
-  // new Chart(ctx, {
-  //   type: 'bar',
-  //   data: data,
-  //   options: {
-  //     responsive: true,
-  //     scales: {
-  //       y: { beginAtZero: true }
-  //     }
-  //   }
-  // });
 }
 
 
@@ -344,23 +298,27 @@ function updateDetailInfo(feature) {
 /**
  * Fetch and render sensor charts for the selected building
  */
-async function loadAndRenderSensorData(feature) {
+function loadAndRenderSensorData(feature) {
   try {
-    const sensors = await fetchBuildingSensors(
-      feature.geometry.coordinates[0][0][1],
-      feature.geometry.coordinates[0][0][0]
-    );
+    const sensors = selectedBuilding.userData.indoorSensors;
 
-    const floorData = groupByFloor(sensors);
+    const sensorsByFloor = sensors.reduce((acc, sensor) => {
+      const floor = sensor.Floor || 'unknown';
+      if (!acc[floor]) acc[floor] = [];
+      acc[floor].push(sensor);
+      return acc;
+    }, {});
 
-    Object.entries(floorData).forEach(([floor, sensors]) => {
+    console.log(sensorsByFloor);
+
+    /*Object.entries(floorData).forEach(([floor, sensors]) => {
       const container = document.getElementById(`charts-floor-${floor}`);
       if (container) {
         sensors.forEach(sensor => {
           createSensorChart(container, sensor);
         });
       }
-    });
+    });*/
   } catch (error) {
     console.error('Failed to load sensor data:', error);
     document.querySelectorAll('.chart-container').forEach(container => {
