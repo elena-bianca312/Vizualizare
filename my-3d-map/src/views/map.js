@@ -95,7 +95,6 @@ document.addEventListener("DOMContentLoaded", function() {
     fetchMarkers(selectedDate, selectedHour);
 
     window.selectedDate = selectedDate;
-    console.log("window.selectedDate set to:", window.selectedDate);
 
     if (window.selectedBuilding && window.loadAndRenderSensorData) {
       window.loadAndRenderSensorData(

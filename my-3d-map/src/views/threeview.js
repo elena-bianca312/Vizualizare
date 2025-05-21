@@ -119,7 +119,6 @@ export function initThreeScene() {
     fetchIndoorSensors()
     .then(indoorSensors => {
       if (indoorSensors && Array.isArray(indoorSensors)) {
-        console.log("Indoor sensors fetched:", indoorSensors);
         addSensorSpheres(scene, buildingData, indoorSensors);
       } else {
         console.error("Indoor sensors not available or invalid format:", indoorSensors);

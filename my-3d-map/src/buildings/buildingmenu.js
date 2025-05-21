@@ -154,6 +154,7 @@ function onDetailWindowResize() {
 export function showBuildingDetailView(building, feature) {
   window.selectedBuilding = building;
   window.selectedFeature = feature;
+  window.selectedTimeRange = 'last_week';
   // Display the container
   detailContainer.style.display = 'flex';
 
@@ -249,10 +250,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
     const levels = feature.properties["building:levels"] || 1;
     let sensors = selectedBuilding.userData.indoorSensors;
 
-    console.log("Initial sensors:", sensors);
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
-
-    console.log("Filtered sensors:", sensors);
 
     // Normalize floor keys to integer strings, so "1.0" and "1" are the same
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
@@ -266,8 +264,6 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       acc[floor].push(sensor);
       return acc;
     }, {});
-
-    console.log("Sensors by floor:", sensorsByFloor);
 
     // Process each floor
     for (let i = 1; i <= levels; i++) {
@@ -283,7 +279,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
             sensor_type: 'No Data',
             unit: '',
             data: []
-          });
+          }, startDate, endDate);
         } else {
           // Group by sensor_id and prepare chart data
           const sensorsById = floorSensors.reduce((acc, reading) => {
@@ -296,7 +292,6 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
                 data: []
               };
             }
-            console.log("Reading:", reading);
             const timestamp = new Date(reading.timestamp);
             const value = parseFloat(reading.value);
             if (!isNaN(timestamp) && !isNaN(value)) {
@@ -304,8 +299,6 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
             }
             return acc;
           }, {});
-
-          console.log("Grouped sensors by ID:", sensorsById);
 
           // Sort data and create charts
           Object.values(sensorsById).forEach(sensor => {

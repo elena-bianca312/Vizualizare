@@ -15,8 +15,12 @@ Chart.register(
 const noDataPlugin = {
   id: 'noDataMessage',
   afterDraw(chart) {
-    const hasData = chart.data.datasets.some(ds => ds.data && ds.data.length > 0);
-    if (!hasData) {
+    // Check if ALL data points are null
+    const hasRealData = chart.data.datasets.some(ds =>
+      ds.data.some(point => point.y !== null)
+    );
+
+    if (!hasRealData) {
       const { ctx, width, height } = chart;
       ctx.save();
       ctx.textAlign = 'center';
@@ -34,6 +38,7 @@ Chart.register(noDataPlugin);
 const chartCache = new Map();
 
 export function createSensorChart(container, sensor, startDate, endDate) {
+
   if (chartCache.has(sensor.sensor_id)) {
     return chartCache.get(sensor.sensor_id);
   }
@@ -42,6 +47,14 @@ export function createSensorChart(container, sensor, startDate, endDate) {
   canvas.style.width = '100%';
   canvas.style.height = '100%';
   container.appendChild(canvas);
+
+   // Always create a dataset with min/max points (even if empty)
+  let chartData = sensor.data && sensor.data.length > 0
+    ? sensor.data
+    : [
+        { x: startDate, y: null }, // Dummy point at start
+        { x: endDate, y: null }    // Dummy point at end
+      ];
 
   const chart = new Chart(canvas, {
     type: 'line',
@@ -54,6 +67,7 @@ export function createSensorChart(container, sensor, startDate, endDate) {
           type: 'time',
           min: startDate,
           max: endDate,
+          bounds: 'ticks',
           time: {
             unit: 'day',
             tooltipFormat: 'dd.MM.yyyy HH:mm',
