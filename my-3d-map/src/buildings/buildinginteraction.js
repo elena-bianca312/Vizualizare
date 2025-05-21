@@ -2,7 +2,7 @@
 
 import * as THREE from "three";
 import { Tween, Easing } from "@tweenjs/tween.js";
-import { tweenGroup } from "../views/threeview.js";
+import { tweenGroup, zoomToBuilding } from "../views/threeview.js";
 import { showBuildingDetailView } from "./buildingmenu.js";
 
 
@@ -134,6 +134,7 @@ export function setupBuildingInteraction(scene, camera, controls) {
       focusOnBuilding(currentHighlight);
       showBuildingInfo(currentHighlight.userData.feature);
       showBuildingDetailView(currentHighlight, currentHighlight.userData.feature);
+      zoomToBuilding(currentHighlight);
     }
   });
 

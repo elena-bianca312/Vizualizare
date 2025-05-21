@@ -326,3 +326,44 @@ function fetchIndoorSensors() {
       return [];
     });
 }
+
+// Store original camera and controls state
+let originalCameraState = null;
+
+export function zoomToBuilding(mesh) {
+  if (!camera || !controls || !mesh) return;
+
+  // Save original camera/controls state if not already saved
+  if (!originalCameraState) {
+    originalCameraState = {
+      position: camera.position.clone(),
+      target: controls.target.clone(),
+    };
+  }
+
+  // Compute building center (in local coordinates)
+  const bbox = new THREE.Box3().setFromObject(mesh);
+  const center = bbox.getCenter(new THREE.Vector3());
+
+  // Set desired zoom distance (adjust as needed)
+  const distance = Math.max(bbox.getSize(new THREE.Vector3()).length(), 100);
+
+  // Move camera above and in front of building center
+  const newCamPos = center.clone().add(new THREE.Vector3(0, -distance, distance * 0.7));
+
+  const xOffset = 70;
+
+  // Move BOTH camera and target by the same X offset
+  camera.position.copy(newCamPos).add(new THREE.Vector3(xOffset, 0, 0));
+  controls.target.copy(center).add(new THREE.Vector3(xOffset, 0, 0));
+  controls.update();
+}
+
+export function restoreOriginalCamera() {
+  if (originalCameraState && camera && controls) {
+    camera.position.copy(originalCameraState.position);
+    controls.target.copy(originalCameraState.target);
+    controls.update();
+    originalCameraState = null;
+  }
+}

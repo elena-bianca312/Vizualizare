@@ -6,6 +6,7 @@ import { Tween, Easing, Group } from "@tweenjs/tween.js";
 import {clearSelectedBuilding, selectedBuilding} from "./buildinginteraction.js";
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
 import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
+import { restoreOriginalCamera } from "../views/threeview.js";
 
 // For animation handling
 const detailTweenGroup = new Group();
@@ -150,106 +151,13 @@ function onDetailWindowResize() {
  * @param {Object} feature - GeoJSON feature data
  */
 export function showBuildingDetailView(building, feature) {
-  // Clear existing building if any
-  if (currentDetailBuilding) {
-    detailScene.remove(currentDetailBuilding);
-    floorPlanes.forEach(plane => detailScene.remove(plane));
-    floorPlanes = [];
-  }
-
-  // Clone the building for detail view
-  const geometry = building.geometry.clone();
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xeeeeee,
-    side: THREE.DoubleSide,
-    flatShading: false,
-    transparent: true,
-    opacity: 0.85
-  });
-
-  currentDetailBuilding = new THREE.Mesh(geometry, material);
-
-  // Add wireframe
-  const wireframe = new THREE.LineSegments(
-    new THREE.EdgesGeometry(geometry),
-    new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 1 })
-  );
-  currentDetailBuilding.add(wireframe);
-
-  // Center building
-  const bbox = new THREE.Box3().setFromObject(currentDetailBuilding);
-  const center = bbox.getCenter(new THREE.Vector3());
-  const size = bbox.getSize(new THREE.Vector3());
-  currentDetailBuilding.position.sub(center);
-
-  // Add floor demarcation
-  addFloorDemarcation(currentDetailBuilding, feature);
-
-  // Add to scene
-  detailScene.add(currentDetailBuilding);
-
-  // Position camera based on building size
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const distance = maxDim * 2;
-  detailCamera.position.set(distance, distance/2, distance/2);
-  detailControls.target.set(0, 0, 0);
-  detailControls.update();
-
   // Display the container
   detailContainer.style.display = 'flex';
 
   // Update info panel
   updateDetailInfo(feature);
-
-  // Animate opening
-  currentDetailBuilding.rotation.y = -Math.PI / 2;
-  new Tween(currentDetailBuilding.rotation)
-    .to({ y: 0 }, 800)
-    .easing(Easing.Quadratic.Out)
-    .start(detailTweenGroup);
 }
 
-/**
- * Add floor demarcation to the building
- * @param {THREE.Mesh} building - The building mesh
- * @param {Object} feature - GeoJSON feature data
- */
-function addFloorDemarcation(building, feature) {
-  const bbox = new THREE.Box3().setFromObject(building);
-  const size = bbox.getSize(new THREE.Vector3());
-  const min = bbox.min;
-
-  const levels = parseInt(feature.properties["building:levels"]) || 1;
-  const floorHeight = size.z / levels;
-
-  // Add horizontal planes for each floor
-  for (let i = 0; i <= levels; i++) {
-    const z = min.z + i * floorHeight;
-
-    // Create a horizontal plane for each floor
-    const planeGeom = new THREE.PlaneGeometry(size.x * 1.02, size.y * 1.02);
-    const planeMat = new THREE.MeshBasicMaterial({
-      color: 0x6688cc,
-      transparent: true,
-      opacity: 0.2,
-      side: THREE.DoubleSide
-    });
-
-    const plane = new THREE.Mesh(planeGeom, planeMat);
-    plane.position.set(0, 0, z);
-    plane.rotation.x = Math.PI / 2;
-
-    // Create an edge outline for the floor
-    const edgeGeom = new THREE.EdgesGeometry(planeGeom);
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x2244aa });
-    const edges = new THREE.LineSegments(edgeGeom, edgeMat);
-
-    plane.add(edges);
-    plane.userData = { floor: i };
-    detailScene.add(plane);
-    floorPlanes.push(plane);
-  }
-}
 
 /**
  * Update information panel with building details and sensor charts
@@ -295,36 +203,89 @@ function updateDetailInfo(feature) {
 
 
 
-/**
- * Fetch and render sensor charts for the selected building
- */
-function loadAndRenderSensorData(feature) {
+function loadAndRenderSensorData(feature, timeRange = 'last_week', referenceDate) {
   try {
-    const sensors = selectedBuilding.userData.indoorSensors;
+    destroyCharts();
+    let sensors = selectedBuilding.userData.indoorSensors;
+
+    // Filter sensors by the selected time range and reference date
+    sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
 
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
-      const floor = sensor.Floor || 'unknown';
+      const floor = (sensor.Floor || '').toString().trim() || 'unknown';
       if (!acc[floor]) acc[floor] = [];
       acc[floor].push(sensor);
       return acc;
     }, {});
 
-    console.log(sensorsByFloor);
-
-    /*Object.entries(floorData).forEach(([floor, sensors]) => {
+    Object.entries(sensorsByFloor).forEach(([floor, sensors]) => {
       const container = document.getElementById(`charts-floor-${floor}`);
       if (container) {
-        sensors.forEach(sensor => {
-          createSensorChart(container, sensor);
+        container.innerHTML = '';
+        const sensorsById = sensors.reduce((acc, reading) => {
+          const id = reading.sensor_id;
+          if (!acc[id]) {
+            acc[id] = {
+              sensor_id: id,
+              sensor_type: reading.sensor_type,
+              unit: reading.unit,
+              timestamps: [],
+              values: []
+            };
+          }
+          const timestamp = new Date(reading.timestamp);
+          if (!isNaN(timestamp)) {
+            acc[id].timestamps.push(timestamp);
+          }
+          const value = parseFloat(reading.value);
+          if (!isNaN(value)) {
+            acc[id].values.push(value);
+          }
+          return acc;
+        }, {});
+
+        Object.values(sensorsById).forEach(sensor => {
+          const paired = sensor.timestamps
+            .map((ts, i) => ({ timestamp: ts, value: sensor.values[i] }))
+            .sort((a, b) => a.timestamp - b.timestamp);
+
+          const sortedSensor = {
+            ...sensor,
+            timestamps: paired.map(d => d.timestamp),
+            values: paired.map(d => d.value)
+          };
+
+          createSensorChart(container, sortedSensor);
         });
       }
-    });*/
+    });
   } catch (error) {
     console.error('Failed to load sensor data:', error);
     document.querySelectorAll('.chart-container').forEach(container => {
       container.innerHTML = '<p>No sensor data available</p>';
     });
   }
+}
+
+// Make this function globally accessible for map.js
+window.loadAndRenderSensorData = loadAndRenderSensorData;
+
+const timeRanges = {
+  last_week: 7 * 24 * 60 * 60 * 1000,
+  last_month: 30 * 24 * 60 * 60 * 1000,
+  last_3_months: 90 * 24 * 60 * 60 * 1000,
+  last_year: 365 * 24 * 60 * 60 * 1000
+};
+
+function filterSensorDataByTimeRange(sensors, timeRange, referenceDate) {
+  const now = referenceDate ? new Date(referenceDate) : new Date();
+  const rangeMs = timeRanges[timeRange] || 0;
+  if (rangeMs === 0) return sensors;
+  const startDate = new Date(now.getTime() - rangeMs);
+  return sensors.filter(sensor => {
+    const ts = new Date(sensor.timestamp);
+    return ts >= startDate && ts <= now;
+  });
 }
 
 /**
@@ -350,4 +311,5 @@ function closeDetailView() {
   detailCamera.position.set(0, 0, 50);
   detailControls.target.set(0, 0, 0);
   detailControls.update();
+  restoreOriginalCamera();
 }
