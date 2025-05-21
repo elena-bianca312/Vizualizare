@@ -1,23 +1,46 @@
-import { Chart, TimeScale, LinearScale, LineController, LineElement, PointElement } from 'chart.js';
+import { Chart, TimeScale, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
 import 'chartjs-adapter-date-fns';
 
-// Register required components
+// Register required components, including Tooltip
 Chart.register(
-  TimeScale,        // For time axis
-  LinearScale,      // For Y-axis
-  LineController,   // For line charts
-  LineElement,      // For line elements
-  PointElement      // For data points
+  TimeScale,
+  LinearScale,
+  LineController,
+  LineElement,
+  PointElement,
+  Tooltip // Explicitly register Tooltip
 );
+
+// Plugin to display "No data to display" message on empty charts
+const noDataPlugin = {
+  id: 'noDataMessage',
+  afterDraw(chart) {
+    const hasData = chart.data.datasets.some(ds => ds.data && ds.data.length > 0);
+    if (!hasData) {
+      const { ctx, width, height } = chart;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = '16px Arial';
+      ctx.fillStyle = '#888';
+      ctx.fillText('No data to display', width / 2, height / 2);
+      ctx.restore();
+    }
+  }
+};
+
+Chart.register(noDataPlugin);
 
 const chartCache = new Map();
 
-export function createSensorChart(container, sensor) {
+export function createSensorChart(container, sensor, startDate, endDate) {
   if (chartCache.has(sensor.sensor_id)) {
     return chartCache.get(sensor.sensor_id);
   }
 
   const canvas = document.createElement('canvas');
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
   container.appendChild(canvas);
 
   const chart = new Chart(canvas, {
@@ -29,10 +52,48 @@ export function createSensorChart(container, sensor) {
       scales: {
         x: {
           type: 'time',
+          min: startDate,
+          max: endDate,
           time: {
-            unit: 'hour',
-            tooltipFormat: 'HH:mm',
-            displayFormats: { hour: 'HH:mm' }
+            unit: 'day',
+            tooltipFormat: 'dd.MM.yyyy HH:mm',
+            displayFormats: {
+              day: 'dd.MM',
+              hour: 'dd.MM HH:mm',
+              minute: 'HH:mm'
+            }
+          },
+          title: {
+            display: true,
+            text: 'Date'
+          }
+        },
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: sensor.unit
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          enabled: true,
+          callbacks: {
+            title: function(context) {
+              const date = context[0].parsed.x;
+              return `Date: ${formatDate(date)}`;
+            },
+            label: function(context) {
+              const value = context.parsed.y;
+              return `Value: ${value} ${sensor.unit}`;
+            },
+            afterLabel: function(context) {
+              return [
+                `Sensor: ${sensor.sensor_type}`,
+                `ID: ${sensor.sensor_id}`
+              ];
+            }
           }
         }
       }
@@ -43,15 +104,16 @@ export function createSensorChart(container, sensor) {
   return chart;
 }
 
-
 function buildChartData(sensor) {
+  // sensor.data should be an array of { x: Date, y: value }
   return {
-    labels: sensor.timestamps,
     datasets: [{
       label: `${sensor.sensor_type} (${sensor.unit})`,
-      data: sensor.values,
+      data: sensor.data || [],
       borderColor: getSensorColor(sensor.sensor_type),
-      tension: 0.1
+      tension: 0.1,
+      pointRadius: 4,
+      pointHoverRadius: 6
     }]
   };
 }
@@ -70,4 +132,17 @@ function getSensorColor(type) {
     'Light': '#9966FF'
   };
   return colors[type] || '#CCCCCC';
+}
+
+// Helper for tooltip date formatting
+function formatDate(date) {
+  const d = new Date(date);
+  // Format as dd.MM.yyyy HH:mm
+  return d.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).replace(',', '');
 }

@@ -7,6 +7,7 @@ import {clearSelectedBuilding, selectedBuilding} from "./buildinginteraction.js"
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
 import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
 import { restoreOriginalCamera } from "../views/threeview.js";
+import { timeRanges, filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
 
 // For animation handling
 const detailTweenGroup = new Group();
@@ -52,7 +53,7 @@ export function initBuildingDetailView() {
     const infoPanel = document.createElement('div');
     infoPanel.id = 'building-detail-info';
     infoPanel.style.padding = '20px';
-    infoPanel.style.maxHeight = '30%';
+    infoPanel.style.maxHeight = '100%';
     infoPanel.style.overflowY = 'auto';
     detailContainer.appendChild(infoPanel);
 
@@ -151,6 +152,8 @@ function onDetailWindowResize() {
  * @param {Object} feature - GeoJSON feature data
  */
 export function showBuildingDetailView(building, feature) {
+  window.selectedBuilding = building;
+  window.selectedFeature = feature;
   // Display the container
   detailContainer.style.display = 'flex';
 
@@ -176,6 +179,16 @@ function updateDetailInfo(feature) {
 
   // Basic building info
   infoPanel.innerHTML = `
+    <div class="menu-header">
+      <h2>Sensor Data - <span id="time-range-display">Last Week</span></h2>
+      <label for="time-range-select">Show:</label>
+      <select id="time-range-select">
+        <option value="last_week">Last Week</option>
+        <option value="last_month">Last Month</option>
+        <option value="last_3_months">Last 3 Months</option>
+        <option value="last_year">Last Year</option>
+      </select>
+    </div>
     <h2>${name}</h2>
     <div class="building-details">
       <div class="detail-row">
@@ -197,96 +210,123 @@ function updateDetailInfo(feature) {
     </div>
   `;
 
+  document.getElementById('time-range-select').addEventListener('change', function() {
+  window.selectedTimeRange = this.value;
+  document.getElementById('time-range-display').textContent = {
+    last_week: 'Last Week',
+    last_month: 'Last Month',
+    last_3_months: 'Last 3 Months',
+    last_year: 'Last Year'
+    }[window.selectedTimeRange];
+    if (window.selectedBuilding && window.loadAndRenderSensorData) {
+      const { startDate, endDate } = getTimeRangeDates(window.selectedTimeRange, window.selectedDate);
+      window.loadAndRenderSensorData(
+        window.selectedFeature,
+        window.selectedTimeRange || 'last_week',
+        window.selectedDate,
+        startDate,
+        endDate
+      );
+    }
+  });
+
   initializeFloorNavigation();
-  loadAndRenderSensorData(feature);
+  const { startDate, endDate } = getTimeRangeDates(window.selectedTimeRange || 'last_week', window.selectedDate);
+  loadAndRenderSensorData(
+    window.selectedFeature,
+    window.selectedTimeRange || 'last_week',
+    window.selectedDate,
+    startDate,
+    endDate
+  );
 }
 
 
-
-function loadAndRenderSensorData(feature, timeRange = 'last_week', referenceDate) {
+function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, endDate) {
   try {
     destroyCharts();
+
+    const levels = feature.properties["building:levels"] || 1;
     let sensors = selectedBuilding.userData.indoorSensors;
 
-    // Filter sensors by the selected time range and reference date
+    console.log("Initial sensors:", sensors);
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
 
+    console.log("Filtered sensors:", sensors);
+
+    // Normalize floor keys to integer strings, so "1.0" and "1" are the same
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
-      const floor = (sensor.Floor || '').toString().trim() || 'unknown';
+      let floor = sensor.Floor;
+      if (floor === undefined || floor === null || floor === '') {
+        floor = 'unknown';
+      } else {
+        floor = parseInt(floor, 10).toString();
+      }
       if (!acc[floor]) acc[floor] = [];
       acc[floor].push(sensor);
       return acc;
     }, {});
 
-    Object.entries(sensorsByFloor).forEach(([floor, sensors]) => {
+    console.log("Sensors by floor:", sensorsByFloor);
+
+    // Process each floor
+    for (let i = 1; i <= levels; i++) {
+      const floor = i.toString();
       const container = document.getElementById(`charts-floor-${floor}`);
       if (container) {
         container.innerHTML = '';
-        const sensorsById = sensors.reduce((acc, reading) => {
-          const id = reading.sensor_id;
-          if (!acc[id]) {
-            acc[id] = {
-              sensor_id: id,
-              sensor_type: reading.sensor_type,
-              unit: reading.unit,
-              timestamps: [],
-              values: []
-            };
-          }
-          const timestamp = new Date(reading.timestamp);
-          if (!isNaN(timestamp)) {
-            acc[id].timestamps.push(timestamp);
-          }
-          const value = parseFloat(reading.value);
-          if (!isNaN(value)) {
-            acc[id].values.push(value);
-          }
-          return acc;
-        }, {});
+        const floorSensors = sensorsByFloor[floor] || [];
 
-        Object.values(sensorsById).forEach(sensor => {
-          const paired = sensor.timestamps
-            .map((ts, i) => ({ timestamp: ts, value: sensor.values[i] }))
-            .sort((a, b) => a.timestamp - b.timestamp);
+        if (floorSensors.length === 0) {
+          createSensorChart(container, {
+            sensor_id: `empty-${floor}`,
+            sensor_type: 'No Data',
+            unit: '',
+            data: []
+          });
+        } else {
+          // Group by sensor_id and prepare chart data
+          const sensorsById = floorSensors.reduce((acc, reading) => {
+            const id = reading.sensor_id;
+            if (!acc[id]) {
+              acc[id] = {
+                sensor_id: id,
+                sensor_type: reading.sensor_type,
+                unit: reading.unit,
+                data: []
+              };
+            }
+            console.log("Reading:", reading);
+            const timestamp = new Date(reading.timestamp);
+            const value = parseFloat(reading.value);
+            if (!isNaN(timestamp) && !isNaN(value)) {
+              acc[id].data.push({ x: timestamp, y: value });
+            }
+            return acc;
+          }, {});
 
-          const sortedSensor = {
-            ...sensor,
-            timestamps: paired.map(d => d.timestamp),
-            values: paired.map(d => d.value)
-          };
+          console.log("Grouped sensors by ID:", sensorsById);
 
-          createSensorChart(container, sortedSensor);
-        });
+          // Sort data and create charts
+          Object.values(sensorsById).forEach(sensor => {
+            sensor.data.sort((a, b) => a.x - b.x); // Ensure chronological order
+            createSensorChart(container, sensor, startDate, endDate);
+          });
+        }
       }
-    });
+    }
   } catch (error) {
     console.error('Failed to load sensor data:', error);
     document.querySelectorAll('.chart-container').forEach(container => {
-      container.innerHTML = '<p>No sensor data available</p>';
+      container.innerHTML = '<div class="error-message">Error loading data</div>';
     });
   }
 }
 
+
+
 // Make this function globally accessible for map.js
 window.loadAndRenderSensorData = loadAndRenderSensorData;
-
-const timeRanges = {
-  last_week: 7 * 24 * 60 * 60 * 1000,
-  last_month: 30 * 24 * 60 * 60 * 1000,
-  last_3_months: 90 * 24 * 60 * 60 * 1000,
-  last_year: 365 * 24 * 60 * 60 * 1000
-};
-
-function filterSensorDataByTimeRange(sensors, timeRange, referenceDate) {
-  const now = referenceDate ? new Date(referenceDate) : new Date();
-  const rangeMs = timeRanges[timeRange] || 0;
-  if (rangeMs === 0) return sensors;
-  const startDate = new Date(now.getTime() - rangeMs);
-  return sensors.filter(sensor => {
-    const ts = new Date(sensor.timestamp);
-    return ts >= startDate && ts <= now;
-  });
-}
 
 /**
  * Close the detail view
@@ -306,6 +346,7 @@ function closeDetailView() {
 
   // Destroy all charts
   destroyCharts();
+  window.selectedTimeRange = 'last_week';
 
   // Reset camera position for next open
   detailCamera.position.set(0, 0, 50);

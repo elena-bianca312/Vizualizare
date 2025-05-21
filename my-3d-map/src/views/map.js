@@ -93,6 +93,17 @@ document.addEventListener("DOMContentLoaded", function() {
     var selectedHour = hourSlider.value;
     hourDisplay.textContent = selectedHour + ":00";
     fetchMarkers(selectedDate, selectedHour);
+
+    window.selectedDate = selectedDate;
+    console.log("window.selectedDate set to:", window.selectedDate);
+
+    if (window.selectedBuilding && window.loadAndRenderSensorData) {
+      window.loadAndRenderSensorData(
+        window.selectedBuilding,
+        window.selectedTimeRange || 'last_week',
+        window.selectedDate
+      );
+    }
   }
 
   datePicker.addEventListener("change", updateMarkers);
