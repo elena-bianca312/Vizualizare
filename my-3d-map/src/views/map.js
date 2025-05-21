@@ -8,6 +8,7 @@ import markerIconGreen from '../assets/leaflets/images/marker-icon-green.png';
 import markerIconViolet from '../assets/leaflets/images/marker-icon-violet.png';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { getTimeRangeDates } from '../assets/utils/timeUtils.js';
 
 const colorIcons = {
   red: markerIconRed,
@@ -95,12 +96,14 @@ document.addEventListener("DOMContentLoaded", function() {
     fetchMarkers(selectedDate, selectedHour);
 
     window.selectedDate = selectedDate;
-
+    const { startDate, endDate } = getTimeRangeDates(window.selectedTimeRange || 'last_week', window.selectedDate);
     if (window.selectedBuilding && window.loadAndRenderSensorData) {
       window.loadAndRenderSensorData(
-        window.selectedBuilding,
+        window.selectedFeature,
         window.selectedTimeRange || 'last_week',
-        window.selectedDate
+        window.selectedDate,
+        startDate,
+        endDate
       );
     }
   }

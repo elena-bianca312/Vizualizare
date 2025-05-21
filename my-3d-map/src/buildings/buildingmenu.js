@@ -53,15 +53,11 @@ export function initBuildingDetailView() {
     const infoPanel = document.createElement('div');
     infoPanel.id = 'building-detail-info';
     infoPanel.style.padding = '20px';
-    infoPanel.style.maxHeight = '100%';
-    infoPanel.style.overflowY = 'auto';
+    infoPanel.style.flex = '1 1 0';
+    infoPanel.style.minHeight = '0';
+    infoPanel.style.display = 'flex';
+    infoPanel.style.flexDirection = 'column';
     detailContainer.appendChild(infoPanel);
-
-    // 3D view container
-    const viewContainer = document.createElement('div');
-    viewContainer.id = 'detail-canvas-container';
-    viewContainer.style.flex = '1';
-    detailContainer.appendChild(viewContainer);
 
     document.body.appendChild(detailContainer);
 
@@ -249,10 +245,8 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
 
     const levels = feature.properties["building:levels"] || 1;
     let sensors = selectedBuilding.userData.indoorSensors;
-
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
 
-    // Normalize floor keys to integer strings, so "1.0" and "1" are the same
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
       let floor = sensor.Floor;
       if (floor === undefined || floor === null || floor === '') {
