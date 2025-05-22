@@ -2,12 +2,12 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { Tween, Easing, Group } from "@tweenjs/tween.js";
+import { Group } from "@tweenjs/tween.js";
 import {clearSelectedBuilding, selectedBuilding} from "./buildinginteraction.js";
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
 import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
 import { restoreOriginalCamera } from "../views/threeview.js";
-import { timeRanges, filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
+import { filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
 
 // For animation handling
 const detailTweenGroup = new Group();
@@ -245,7 +245,10 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
 
     const levels = feature.properties["building:levels"] || 1;
     let sensors = selectedBuilding.userData.indoorSensors;
+    console.log('Sensors:', sensors);
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
+
+    console.log('Filtered sensors:', sensors);
 
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
       let floor = sensor.Floor;
@@ -259,7 +262,6 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       return acc;
     }, {});
 
-    // Process each floor
     for (let i = 1; i <= levels; i++) {
       const floor = i.toString();
       const container = document.getElementById(`charts-floor-${floor}`);
@@ -269,19 +271,20 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
 
         if (floorSensors.length === 0) {
           createSensorChart(container, {
-            sensor_id: `empty-${floor}`,
             sensor_type: 'No Data',
             unit: '',
-            data: []
-          }, startDate, endDate);
+            datasets: []
+          }, startDate, endDate, `NoData_${floor}`);
         } else {
-          // Group by sensor_id and prepare chart data
-          const sensorsById = floorSensors.reduce((acc, reading) => {
+          // Group by sensor_type, then by sensor_id
+          const sensorsByType = floorSensors.reduce((acc, reading) => {
+            const type = reading.sensor_type;
+            if (!acc[type]) acc[type] = {};
             const id = reading.sensor_id;
-            if (!acc[id]) {
-              acc[id] = {
+            if (!acc[type][id]) {
+              acc[type][id] = {
                 sensor_id: id,
-                sensor_type: reading.sensor_type,
+                sensor_type: type,
                 unit: reading.unit,
                 data: []
               };
@@ -289,15 +292,31 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
             const timestamp = new Date(reading.timestamp);
             const value = parseFloat(reading.value);
             if (!isNaN(timestamp) && !isNaN(value)) {
-              acc[id].data.push({ x: timestamp, y: value });
+              acc[type][id].data.push({ x: timestamp, y: value });
             }
             return acc;
           }, {});
 
-          // Sort data and create charts
-          Object.values(sensorsById).forEach(sensor => {
-            sensor.data.sort((a, b) => a.x - b.x); // Ensure chronological order
-            createSensorChart(container, sensor, startDate, endDate);
+          console.log('Sensors by type:', sensorsByType);
+
+          // For each sensor type, create one chart with multiple datasets (one per sensor_id)
+          Object.entries(sensorsByType).forEach(([sensor_type, sensorsOfType]) => {
+            const colorPalette = ['#FF6384', '#36A2EB', '#4BC0C0', '#FFCE56', '#9966FF', '#888888'];
+            let colorIndex = 0;
+            const datasets = Object.values(sensorsOfType).map(sensor => ({
+              label: sensor.sensor_id,
+              data: sensor.data.sort((a, b) => a.x - b.x),
+              borderColor: colorPalette[colorIndex++ % colorPalette.length],
+              tension: 0.1,
+              pointRadius: 4,
+              pointHoverRadius: 6
+            }));
+
+            createSensorChart(container, {
+              sensor_type,
+              unit: datasets[0]?.unit || '',
+              datasets
+            }, startDate, endDate, `${sensor_type}_${floor}`);
           });
         }
       }

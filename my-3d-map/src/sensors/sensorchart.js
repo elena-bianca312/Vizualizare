@@ -37,28 +37,60 @@ Chart.register(noDataPlugin);
 
 const chartCache = new Map();
 
-export function createSensorChart(container, sensor, startDate, endDate) {
-
-  if (chartCache.has(sensor.sensor_id)) {
-    return chartCache.get(sensor.sensor_id);
+export function createSensorChart(container, sensorGroup, startDate, endDate, cacheKey = null) {
+  const key = cacheKey || sensorGroup.sensor_type;
+  if (chartCache.has(key)) {
+    return chartCache.get(key);
   }
 
+  // 1. Create the checkbox menu container
+  const menuDiv = document.createElement('div');
+  menuDiv.className = 'sensor-checkbox-menu';
+  menuDiv.style.margin = '8px 0';
+
+  // 2. Prepare the datasets array
+  const hasData = sensorGroup.datasets && sensorGroup.datasets.some(ds => ds.data && ds.data.length > 0);
+  const datasets = hasData
+    ? sensorGroup.datasets
+    : [{
+        label: 'No Data',
+        data: [
+          { x: startDate, y: null },
+          { x: endDate, y: null }
+        ],
+        borderColor: '#ccc',
+        pointRadius: 0,
+        borderWidth: 0
+      }];
+
+  // 3. Add a checkbox for each dataset (sensor)
+  datasets.forEach((ds, idx) => {
+    if (ds.label === 'No Data') return; // Skip dummy dataset
+    const label = document.createElement('label');
+    label.style.marginRight = '12px';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    checkbox.dataset.idx = idx;
+    checkbox.style.marginRight = '4px';
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(ds.label));
+    menuDiv.appendChild(label);
+  });
+
+  // 4. Add the menu to the container
+  container.appendChild(menuDiv);
+
+  // 5. Create the chart canvas
   const canvas = document.createElement('canvas');
   canvas.style.width = '100%';
   canvas.style.height = '100%';
   container.appendChild(canvas);
 
-   // Always create a dataset with min/max points (even if empty)
-  let chartData = sensor.data && sensor.data.length > 0
-    ? sensor.data
-    : [
-        { x: startDate, y: null }, // Dummy point at start
-        { x: endDate, y: null }    // Dummy point at end
-      ];
-
+  // 6. Create the Chart.js chart
   const chart = new Chart(canvas, {
     type: 'line',
-    data: buildChartData(sensor),
+    data: { datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -86,7 +118,7 @@ export function createSensorChart(container, sensor, startDate, endDate) {
           beginAtZero: true,
           title: {
             display: true,
-            text: sensor.unit
+            text: sensorGroup.unit
           }
         }
       },
@@ -95,18 +127,19 @@ export function createSensorChart(container, sensor, startDate, endDate) {
           enabled: true,
           callbacks: {
             title: function(context) {
-              const date = context[0].parsed.x;
-              return `Date: ${formatDate(date)}`;
+              if (!context || !context[0]) return '';
+              const date = context[0].parsed?.x;
+              return date ? `Date: ${formatDate(date)}` : '';
             },
             label: function(context) {
-              const value = context.parsed.y;
-              return `Value: ${value} ${sensor.unit}`;
+              if (!context) return '';
+              const value = context.parsed?.y;
+              const unit = context.dataset?.unit || sensorGroup.unit || '';
+              return value !== undefined ? `Value: ${value} ${unit}` : '';
             },
             afterLabel: function(context) {
-              return [
-                `Sensor: ${sensor.sensor_type}`,
-                `ID: ${sensor.sensor_id}`
-              ];
+              if (!context || !context.dataset) return '';
+              return `Sensor: ${context.dataset.label || ''}`;
             }
           }
         }
@@ -114,38 +147,23 @@ export function createSensorChart(container, sensor, startDate, endDate) {
     }
   });
 
-  chartCache.set(sensor.sensor_id, chart);
+  // 7. Checkbox logic: show/hide datasets
+  Array.from(menuDiv.querySelectorAll('input[type=checkbox]')).forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const idx = parseInt(this.dataset.idx, 10);
+      chart.setDatasetVisibility(idx, this.checked); // [4]
+      chart.update();
+    });
+  });
+
+  chartCache.set(key, chart);
   return chart;
 }
 
-function buildChartData(sensor) {
-  // sensor.data should be an array of { x: Date, y: value }
-  return {
-    datasets: [{
-      label: `${sensor.sensor_type} (${sensor.unit})`,
-      data: sensor.data || [],
-      borderColor: getSensorColor(sensor.sensor_type),
-      tension: 0.1,
-      pointRadius: 4,
-      pointHoverRadius: 6
-    }]
-  };
-}
 
 export function destroyCharts() {
   chartCache.forEach(chart => chart.destroy());
   chartCache.clear();
-}
-
-function getSensorColor(type) {
-  const colors = {
-    'Temperature': '#FF6384',
-    'Humidity': '#36A2EB',
-    'Air Quality': '#4BC0C0',
-    'Noise': '#FFCE56',
-    'Light': '#9966FF'
-  };
-  return colors[type] || '#CCCCCC';
 }
 
 // Helper for tooltip date formatting
