@@ -3,9 +3,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Group } from "@tweenjs/tween.js";
-import {clearSelectedBuilding, selectedBuilding} from "./buildinginteraction.js";
+import {clearSelectedBuilding, selectedBuilding} from "./buildingInteraction.js";
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
-import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
+// import { createSensorChart, destroyCharts } from '../charts/sensorchart.js';
+import { createSensorChart, destroyCharts } from "../charts/createSensorChart.js";
 import { restoreOriginalCamera } from "../views/threeview.js";
 import { filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
 // For animation handling
