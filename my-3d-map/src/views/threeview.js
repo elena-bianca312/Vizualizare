@@ -5,7 +5,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import buildingsUrl from '../assets/data/buildings.geojson?url';
 import { setupBuildingInteraction } from "../buildings/buildingInteraction.js";
 import { Group } from "@tweenjs/tween.js";
-import {initBuildingDetailView} from "../buildings/buildingMenu.js";
+import { initBuildingDetailView } from "../buildings/buildingmenu.js";
 
 const CENTER_LON = 26.045184;
 const CENTER_LAT = 44.4349638;

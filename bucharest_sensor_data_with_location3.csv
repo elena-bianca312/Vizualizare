@@ -20,3 +20,11 @@ timestamp,location,sensor_id,sensor_type,value,unit,lat,lon,IsIndoor,Floor
 2025-05-01T08:00:00Z,Bucharest,TEMP003,Temperature,22.0,Celsius,44.4350376,26.0474506,True,1.0
 2025-05-01T12:00:00Z,Bucharest,TEMP001,Temperature,27.0,Celsius,44.4350376,26.0474506,True,1.0
 2025-05-01T12:00:00Z,Bucharest,TEMP003,Temperature,24.2,Celsius,44.4350376,26.0474506,True,1.0
+
+2025-04-26T12:00:00Z,Bucharest,HUM001,Humidity,45.0,Percent,44.4350376,26.0474506,True,1.0
+2025-04-26T12:05:00Z,Bucharest,HUM001,Humidity,46.2,Percent,44.4350376,26.0474506,True,1.0
+2025-04-26T12:10:00Z,Bucharest,HUM001,Humidity,44.8,Percent,44.4350376,26.0474506,True,1.0
+2025-04-26T12:15:00Z,Bucharest,HUM001,Humidity,43.9,Percent,44.4350376,26.0474506,True,1.0
+2025-04-26T12:20:00Z,Bucharest,HUM002,Humidity,47.1,Percent,44.4350376,26.0474506,True,2.0
+2025-04-27T12:05:00Z,Bucharest,HUM003,Humidity,42.7,Percent,44.4350376,26.0474506,True,1.0
+2025-04-28T12:05:00Z,Bucharest,HUM003,Humidity,43.3,Percent,44.4350376,26.0474506,True,1.0
