@@ -1,4 +1,5 @@
 import { Chart, TimeScale, LinearScale, LineController, LineElement, PointElement, Tooltip } from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
 import 'chartjs-adapter-date-fns';
 
 // Register required components, including Tooltip
@@ -8,7 +9,8 @@ Chart.register(
   LineController,
   LineElement,
   PointElement,
-  Tooltip // Explicitly register Tooltip
+  Tooltip,
+  zoomPlugin
 );
 
 // Plugin to display "No data to display" message on empty charts
@@ -43,12 +45,12 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
     return chartCache.get(key);
   }
 
-  // 1. Create the checkbox menu container
+  // Create the checkbox menu container
   const menuDiv = document.createElement('div');
   menuDiv.className = 'sensor-checkbox-menu';
   menuDiv.style.margin = '8px 0';
 
-  // 2. Prepare the datasets array
+  // Prepare the datasets array
   const hasData = sensorGroup.datasets && sensorGroup.datasets.some(ds => ds.data && ds.data.length > 0);
   const datasets = hasData
     ? sensorGroup.datasets
@@ -63,7 +65,7 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
         borderWidth: 0
       }];
 
-  // 3. Add a checkbox for each dataset (sensor)
+  // Add a checkbox for each dataset (sensor)
   datasets.forEach((ds, idx) => {
     if (ds.label === 'No Data') return; // Skip dummy dataset
     const label = document.createElement('label');
@@ -78,16 +80,56 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
     menuDiv.appendChild(label);
   });
 
-  // 4. Add the menu to the container
+  // Add the menu to the container
   container.appendChild(menuDiv);
 
-  // 5. Create the chart canvas
+  // Create the chart canvas
   const canvas = document.createElement('canvas');
   canvas.style.width = '100%';
   canvas.style.height = '100%';
   container.appendChild(canvas);
 
-  // 6. Create the Chart.js chart
+ // Create a button row
+  const buttonRow = document.createElement('div');
+  buttonRow.style.display = 'flex';
+  buttonRow.style.gap = '12px';
+  buttonRow.style.margin = '8px 0 24px 0';
+
+  // Create Reset Zoom button
+  const resetBtn = document.createElement('button');
+  resetBtn.textContent = 'Reset Zoom';
+
+  // Create Download Graph button
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = 'Download Graph';
+
+  // Append in order: Reset Zoom, then Download Graph
+  buttonRow.appendChild(resetBtn);
+  buttonRow.appendChild(downloadBtn);
+  container.appendChild(buttonRow);
+
+  // Create zoom options
+  const zoomOptions = {
+    pan: {
+      enabled: true,
+      mode: 'xy',
+      modifierKey: null,
+    },
+    zoom: {
+      drag: {
+        enabled: false,
+      },
+      wheel: {
+        enabled: true,
+      },
+      pinch: {
+        enabled: true,
+      },
+      mode: 'xy',
+    }
+  };
+
+  // Create the Chart.js chart
   const chart = new Chart(canvas, {
     type: 'line',
     data: { datasets },
@@ -115,6 +157,7 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
           }
         },
         y: {
+          display: true,
           beginAtZero: true,
           title: {
             display: true,
@@ -142,18 +185,61 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
               return `Sensor: ${context.dataset.label || ''}`;
             }
           }
-        }
+        },
+        zoom: zoomOptions
       }
     }
   });
 
-  // 7. Checkbox logic: show/hide datasets
+  // Reset zoom on button click
+  resetBtn.addEventListener('click', () => {
+    chart.resetZoom();
+  });
+
+  // Checkbox logic: show/hide datasets
   Array.from(menuDiv.querySelectorAll('input[type=checkbox]')).forEach(checkbox => {
     checkbox.addEventListener('change', function() {
       const idx = parseInt(this.dataset.idx, 10);
       chart.setDatasetVisibility(idx, this.checked); // [4]
       chart.update();
     });
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    // Get chart image as base64
+    const chartImage = chart.toBase64Image();
+
+    // Prepare details
+    const buildingName = (window.selectedFeature?.properties?.name || 'Building');
+    const floor = (container.dataset.floor || 'Unknown Floor');
+    const timeRange = (window.selectedTimeRange || 'Unknown Range');
+
+    // Create a temporary canvas to add details
+    const tempCanvas = document.createElement('canvas');
+    const width = chart.width;
+    const height = chart.height + 60; // Extra space for details
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const ctx = tempCanvas.getContext('2d');
+
+    // Draw details at the top
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Arial';
+    ctx.fillText(`${buildingName} | Floor: ${floor} | Time Range: ${timeRange}`, 16, 28);
+
+    // Draw chart image below the details
+    const img = new window.Image();
+    img.onload = function() {
+      ctx.drawImage(img, 0, 40, width, chart.height);
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = tempCanvas.toDataURL('image/png');
+      link.download = `${buildingName}_floor${floor}_${timeRange}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    img.src = chartImage;
   });
 
   chartCache.set(key, chart);

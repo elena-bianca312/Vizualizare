@@ -8,7 +8,6 @@ import { createFloorTabs, createFloorSections, initializeFloorNavigation } from 
 import { createSensorChart, destroyCharts } from '../sensors/sensorchart.js';
 import { restoreOriginalCamera } from "../views/threeview.js";
 import { filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
-
 // For animation handling
 const detailTweenGroup = new Group();
 
@@ -309,7 +308,8 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
               borderColor: colorPalette[colorIndex++ % colorPalette.length],
               tension: 0.1,
               pointRadius: 4,
-              pointHoverRadius: 6
+              pointHoverRadius: 6,
+              unit: sensor.unit,
             }));
 
             createSensorChart(container, {
