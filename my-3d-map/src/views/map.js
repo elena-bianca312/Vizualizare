@@ -108,7 +108,18 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  datePicker.addEventListener("change", updateMarkers);
+  datePicker.addEventListener("change", () => {
+    updateMarkers();
+
+    if (window.refreshThreeSpheres) {
+      window.refreshThreeSpheres();
+    }
+  });
+
+  document.getElementById("show-all-sensors").addEventListener("change", () => {
+    if (window.refreshThreeSpheres) window.refreshThreeSpheres();
+  });
+
   hourSlider.addEventListener("input", updateMarkers);
 
   resetButton.addEventListener("click", function() {
@@ -173,7 +184,8 @@ document.addEventListener("DOMContentLoaded", function() {
   document.getElementById('toggle-view').addEventListener('click', () => {
     const mapContainer = document.getElementById('mapContainer');
     const threeContainer = document.getElementById('threeContainer');
-
+    const legend3D = document.getElementById('legend3D');
+    const hourContainer = document.getElementById('hour-container');
     const is3D = threeContainer.style.pointerEvents === 'auto';
 
     const center = map.getCenter();
@@ -192,6 +204,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
       map.invalidateSize();
 
+      hourContainer.style.display = 'block';
       if (legend3D) legend3D.style.display = 'none';
     } else {
       // Switch to 3D
@@ -203,6 +216,7 @@ document.addEventListener("DOMContentLoaded", function() {
       threeModule.initThreeScene();
       window.threeLoaded = true;
 
+      hourContainer.style.display = 'none';
       if (legend3D) legend3D.style.display = 'block';
     }
   });

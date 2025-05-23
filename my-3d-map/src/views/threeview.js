@@ -120,11 +120,6 @@ export function initThreeScene() {
     .then(allSensors => {
       const indoorSensors = allSensors.filter(s => s.IsIndoor);
       const outdoorSensors = allSensors.filter(s => !s.IsIndoor);
-      console.log(allSensors);
-      console.log("sssssssssssssssssssssssssssss");
-      console.log(indoorSensors);
-      console.log("sssssssssssssssssssssssssssss");
-      console.log(outdoorSensors);
 
       if (indoorSensors && Array.isArray(indoorSensors)) {
         addIndoorSensorSpheres(scene, buildingData, indoorSensors);
@@ -162,6 +157,9 @@ export function initThreeScene() {
 
   initBuildingDetailView();
 
+
+
+  // Hide indoor sensors
   document.querySelectorAll('.sensor-toggle-3d').forEach(input => {
     input.addEventListener('change', () => {
       const group = input.dataset.group;
@@ -201,6 +199,34 @@ export function initThreeScene() {
       }
     });
   });
+
+  window.refreshThreeSpheres = () => {
+    // Remove outdoor spheres
+    scene.children = scene.children.filter(obj => !obj.userData?.group || obj.userData.group !== 'outdoor');
+
+    // Remove indoor spheres attached to buildings
+    buildingData.forEach(({ mesh }) => {
+      const toRemove = [];
+
+      mesh.children.forEach(child => {
+        if (child.userData?.group === "indoor") {
+          toRemove.push(child);
+        }
+      });
+
+      toRemove.forEach(child => mesh.remove(child));
+    });
+
+    // Use same logic from init to redraw spheres
+    fetchAllSensors()
+      .then(allSensors => {
+        const indoorSensors = allSensors.filter(s => s.IsIndoor);
+        const outdoorSensors = allSensors.filter(s => !s.IsIndoor);
+
+        addIndoorSensorSpheres(scene, buildingData, indoorSensors);
+        addOutdoorSensorSpheres(scene, buildingData, outdoorSensors);
+      });
+  };
 }
 
 function loadTiles(center, scene) {
@@ -278,6 +304,8 @@ function tileYToLat(y, zoom) {
 
 function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
   const SENSOR_RADIUS = 2;
+  const showAll = document.getElementById("show-all-sensors")?.checked;
+  const selectedDate = window.selectedDate;
 
   buildingData.forEach(({ mesh, shape }) => {
     const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
@@ -285,7 +313,13 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
     const localSensors = indoorSensors.filter(sensor => {
       const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
       const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-      return isPointInPolygon(polygon, new THREE.Vector2(px, py));
+      const isInside = isPointInPolygon(polygon, new THREE.Vector2(px, py));
+
+      if (!isInside) return false;
+      if (showAll) return true;
+
+      // Only include if we have a matching timestamp
+      return sensor.timestamp?.startsWith(selectedDate);
     });
 
     mesh.userData.indoorSensors = localSensors;
@@ -364,37 +398,53 @@ function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
     air_quality: 0x66cc66,
     wind_speed: 0xcc66ff
   };
-
+  const selectedDate = window.selectedDate;
+  const showAll = document.getElementById("show-all-sensors")?.checked;
 
   const polygons = buildingData.map(({ shape, mesh }) =>
     shape.getPoints().map(p => p.clone().add(mesh.position))
   );
 
+  const sensorMap = new Map();
+
+  // Group by sensor_id, keep latest reading for the selected date
   outdoorSensors.forEach(sensor => {
+    if (!sensor.sensor_id || !sensor.timestamp) return;
+    if (!showAll && !sensor.timestamp.startsWith(selectedDate)) return;
+
+    const existing = sensorMap.get(sensor.sensor_id);
+    if (!existing || new Date(sensor.timestamp) > new Date(existing.timestamp)) {
+      sensorMap.set(sensor.sensor_id, sensor);
+    }
+  });
+
+  console.log(sensorMap);
+
+  // Render each filtered sensor
+  for (const sensor of sensorMap.values()) {
     const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
     const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
     const point = new THREE.Vector2(px, py);
 
-    // Only show if not inside any building
     const insideAnyBuilding = polygons.some(poly => isPointInPolygon(poly, point));
-    if (insideAnyBuilding) return;
+    if (insideAnyBuilding) continue;
 
     const color = sensorColors3D[sensor.sensor_type] || 0x999999;
 
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(SENSOR_RADIUS, 8, 6),
-      new THREE.MeshStandardMaterial({ color: color })
+      new THREE.MeshStandardMaterial({ color })
     );
 
     sphere.position.set(px, py, 2);
-
     sphere.userData = {
       sensorType: sensor.sensor_type,
-      group: "outdoor"
+      group: "outdoor",
+      sensorId: sensor.sensor_id
     };
 
     scene.add(sphere);
-  });
+    }
 }
 
 function isPointInPolygon(polygon, point) {

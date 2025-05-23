@@ -12,17 +12,23 @@
         <h1>Vizualizare Senzori în București</h1>
 
         <div id="controls">
+
             <label for="date-picker">Selectează data:</label>
             <input type="date" id="date-picker" />
-            <label for="hour-slider">Selectează ora:</label>
-            <input type="range" id="hour-slider" min="0" max="23" value="12" />
-            <span id="hour-display">12:00</span>
+            <div id="hour-container">
+                <label for="hour-slider">Selectează ora:</label>
+                <input type="range" id="hour-slider" min="0" max="23" value="12" />
+                <span id="hour-display">12:00</span>
+            </div>
             <button id="reset-button">Resetare</button>
             <button id="toggle-view">Comută între 2D/3D</button>
         </div>
         <div id="legend3D" class="legend3D">
           <strong>Legend (3D)</strong><br>
-
+          <label>
+            <input type="checkbox" id="show-all-sensors">
+            Afișează toți senzorii (ignora data aleasă)
+          </label><br>
           <label>
             <input type="checkbox" class="sensor-toggle-3d" data-group="indoor" checked>
             Indoor Sensors

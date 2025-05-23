@@ -31,6 +31,6 @@ timestamp,location,sensor_id,sensor_type,value,unit,lat,lon,IsIndoor,Floor
 
 
 2025-04-26T12:00:00Z,Bucharest,TEMP001,temperature,22.5,Celsius,44.4361376,26.0482506,False,1.0
-2025-04-26T12:05:00Z,Bucharest,TEMP001,air_quality,80.0,AQI,44.4350376,26.0471506,False,1.0
+2025-04-26T12:05:00Z,Bucharest,TEMP002,air_quality,80.0,AQI,44.4350376,26.0471506,False,1.0
 2025-04-28T12:05:00Z,Bucharest,HUM003,humidity,43.3,Percent,44.4351376,26.0474606,False,1.0
-2025-04-28T12:05:00Z,Bucharest,HUM003,wind_speed,43.3,Percent,44.4352376,26.0474706,False,1.0
+2025-04-28T12:05:00Z,Bucharest,HUM002,wind_speed,43.3,Percent,44.4352376,26.0474706,False,1.0
