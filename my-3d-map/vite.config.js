@@ -24,7 +24,7 @@ export default defineConfig({
           });
         }
       },
-      '/indoor_sensors': {
+      '/all_sensors': {
         target: 'http://127.0.0.1:8051', // Use explicit IPv4 address
         changeOrigin: true,
         agent: new http.Agent({ family: 4 }), // Force IPv4

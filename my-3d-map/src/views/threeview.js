@@ -116,13 +116,28 @@ export function initThreeScene() {
 
     loadTiles(center, scene);
 
-    fetchIndoorSensors()
-    .then(indoorSensors => {
+    fetchAllSensors()
+    .then(allSensors => {
+      const indoorSensors = allSensors.filter(s => s.IsIndoor);
+      const outdoorSensors = allSensors.filter(s => !s.IsIndoor);
+      console.log(allSensors);
+      console.log("sssssssssssssssssssssssssssss");
+      console.log(indoorSensors);
+      console.log("sssssssssssssssssssssssssssss");
+      console.log(outdoorSensors);
+
       if (indoorSensors && Array.isArray(indoorSensors)) {
-        addSensorSpheres(scene, buildingData, indoorSensors);
+        addIndoorSensorSpheres(scene, buildingData, indoorSensors);
       } else {
         console.error("Indoor sensors not available or invalid format:", indoorSensors);
       }
+
+      if (outdoorSensors && Array.isArray(outdoorSensors)) {
+        addOutdoorSensorSpheres(scene, buildingData, outdoorSensors);
+      } else {
+        console.error("Indoor sensors not available or invalid format:", outdoorSensors);
+      }
+
     })
     .catch(error => {
       console.error("Failed to fetch indoor sensors:", error);
@@ -146,6 +161,46 @@ export function initThreeScene() {
   });
 
   initBuildingDetailView();
+
+  document.querySelectorAll('.sensor-toggle-3d').forEach(input => {
+    input.addEventListener('change', () => {
+      const group = input.dataset.group;
+      const visible = input.checked;
+
+      scene.traverse(obj => {
+        if (obj.isMesh && obj.userData?.group === group) {
+          obj.visible = visible;
+        }
+      });
+    });
+  });
+
+  // Outdoor type-specific toggles
+  document.querySelectorAll('.sensor-type-toggle-3d').forEach(input => {
+    input.addEventListener('change', () => {
+      const sensorType = input.dataset.sensor;
+      const visible = input.checked;
+
+      scene.traverse(obj => {
+        if (obj.isMesh && obj.userData?.group === "outdoor" && obj.userData?.sensorType === sensorType) {
+          obj.visible = visible;
+        }
+      });
+    });
+  });
+
+  // Hide outdoor types if the whole group is unchecked
+  document.getElementById('toggle-outdoor').addEventListener('change', (e) => {
+    const show = e.target.checked;
+    const outdoorGroup = document.getElementById('outdoor-types');
+    outdoorGroup.style.display = show ? 'block' : 'none';
+
+    scene.traverse(obj => {
+      if (obj.isMesh && obj.userData?.group === "outdoor") {
+        obj.visible = show;
+      }
+    });
+  });
 }
 
 function loadTiles(center, scene) {
@@ -221,8 +276,8 @@ function tileYToLat(y, zoom) {
   return (180 / Math.PI) * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
 }
 
-function addSensorSpheres(scene, buildingData, indoorSensors) {
-  const SENSOR_RADIUS = 5;
+function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
+  const SENSOR_RADIUS = 2;
 
   buildingData.forEach(({ mesh, shape }) => {
     const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
@@ -240,12 +295,15 @@ function addSensorSpheres(scene, buildingData, indoorSensors) {
       const center = bbox.getCenter(new THREE.Vector3());
 
       const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16),
+        new THREE.SphereGeometry(SENSOR_RADIUS, 8, 6),
         new THREE.MeshStandardMaterial({ color: 0xff0000 })
       );
 
-      sphere.position.set(center.x, center.y, bbox.max.z + 20);
-      sphere.scale.setScalar(1 + localSensors.length * 0.2);
+      sphere.position.set(center.x, center.y, bbox.max.z + 2);
+
+      sphere.userData = {
+        group: "indoor"
+      };
 
       mesh.add(sphere);
     }
@@ -254,7 +312,7 @@ function addSensorSpheres(scene, buildingData, indoorSensors) {
 
 
 // IMPORTANTA PENTRU DEBUG
-/*function addSensorSpheres(scene, buildingData, indoorSensors) {
+/*function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
   const SENSOR_RADIUS = 5;
   const DEBUG_RADIUS = 2;
 
@@ -298,6 +356,46 @@ function addSensorSpheres(scene, buildingData, indoorSensors) {
   });
 }*/
 
+function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
+  const SENSOR_RADIUS = 2;
+  const sensorColors3D = {
+    temperature: 0xff0000,
+    humidity: 0x66ccff,
+    air_quality: 0x66cc66,
+    wind_speed: 0xcc66ff
+  };
+
+
+  const polygons = buildingData.map(({ shape, mesh }) =>
+    shape.getPoints().map(p => p.clone().add(mesh.position))
+  );
+
+  outdoorSensors.forEach(sensor => {
+    const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
+    const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+    const point = new THREE.Vector2(px, py);
+
+    // Only show if not inside any building
+    const insideAnyBuilding = polygons.some(poly => isPointInPolygon(poly, point));
+    if (insideAnyBuilding) return;
+
+    const color = sensorColors3D[sensor.sensor_type] || 0x999999;
+
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(SENSOR_RADIUS, 8, 6),
+      new THREE.MeshStandardMaterial({ color: color })
+    );
+
+    sphere.position.set(px, py, 2);
+
+    sphere.userData = {
+      sensorType: sensor.sensor_type,
+      group: "outdoor"
+    };
+
+    scene.add(sphere);
+  });
+}
 
 function isPointInPolygon(polygon, point) {
   let inside = false;
@@ -314,8 +412,8 @@ function isPointInPolygon(polygon, point) {
   return inside;
 }
 
-function fetchIndoorSensors() {
-  return fetch('/indoor_sensors')
+function fetchAllSensors() {
+  return fetch('/all_sensors')
     .then(response => {
       if (!response.ok) throw new Error("Failed to fetch sensors: " + response.status);
       return response.json();

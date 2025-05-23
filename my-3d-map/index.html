@@ -20,6 +20,37 @@
             <button id="reset-button">Resetare</button>
             <button id="toggle-view">Comută între 2D/3D</button>
         </div>
+        <div id="legend3D" class="legend3D">
+          <strong>Legend (3D)</strong><br>
+
+          <label>
+            <input type="checkbox" class="sensor-toggle-3d" data-group="indoor" checked>
+            Indoor Sensors
+          </label><br>
+
+          <label>
+            <input type="checkbox" id="toggle-outdoor" checked>
+            Outdoor Sensors
+          </label>
+          <div id="outdoor-types" style="margin-left: 20px; margin-top: 5px;">
+            <label>
+              <input type="checkbox" class="sensor-type-toggle-3d" data-sensor="temperature" checked>
+              <span class="dot" style="background:#ff0000;"></span> temperature
+            </label><br>
+            <label>
+              <input type="checkbox" class="sensor-type-toggle-3d" data-sensor="humidity" checked>
+              <span class="dot" style="background:#66ccff;"></span> humidity
+            </label><br>
+            <label>
+              <input type="checkbox" class="sensor-type-toggle-3d" data-sensor="air_quality" checked>
+              <span class="dot" style="background:#66cc66;"></span> air_quality
+            </label><br>
+            <label>
+              <input type="checkbox" class="sensor-type-toggle-3d" data-sensor="wind_speed" checked>
+              <span class="dot" style="background:#cc66ff;"></span> wind_speed
+            </label>
+          </div>
+        </div>
     </div>
 
     <div id="viewContainer">

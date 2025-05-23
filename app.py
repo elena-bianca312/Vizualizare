@@ -21,8 +21,8 @@ sensor_colors = {
     'wind_speed': 'violet'
 }
 
-@app.route('/indoor_sensors')
-def get_indoor_sensors():
+@app.route('/all_sensors')
+def get_all_sensors():
     df = pd.read_csv("bucharest_sensor_data_with_location3.csv")
     df = df.replace({np.nan: None})
     data = df.to_dict(orient='records')

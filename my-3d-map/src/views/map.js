@@ -171,37 +171,41 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   document.getElementById('toggle-view').addEventListener('click', () => {
-  const mapContainer = document.getElementById('mapContainer');
-  const threeContainer = document.getElementById('threeContainer');
+    const mapContainer = document.getElementById('mapContainer');
+    const threeContainer = document.getElementById('threeContainer');
 
-  const is3D = threeContainer.style.pointerEvents === 'auto';
+    const is3D = threeContainer.style.pointerEvents === 'auto';
 
-  const center = map.getCenter();
-    const zoom = map.getZoom();
+    const center = map.getCenter();
+      const zoom = map.getZoom();
 
-    window.currentMapCenter = center;
-    window.currentMapZoom = zoom;
+      window.currentMapCenter = center;
+      window.currentMapZoom = zoom;
 
-  if (is3D) {
-    // Switch to 2D
-    threeContainer.style.pointerEvents = 'none';
-    threeContainer.style.visibility = 'hidden';
+    if (is3D) {
+      // Switch to 2D
+      threeContainer.style.pointerEvents = 'none';
+      threeContainer.style.visibility = 'hidden';
 
-    mapContainer.style.pointerEvents = 'auto';
-    mapContainer.style.visibility = 'visible';
+      mapContainer.style.pointerEvents = 'auto';
+      mapContainer.style.visibility = 'visible';
 
-    map.invalidateSize();
-  } else {
-    // Switch to 3D
-    threeContainer.style.pointerEvents = 'auto';
-    threeContainer.style.visibility = 'visible';
+      map.invalidateSize();
 
-    mapContainer.style.pointerEvents = 'none';
-    mapContainer.style.visibility = 'hidden';
-    threeModule.initThreeScene();
-    window.threeLoaded = true;
-  }
-});
+      if (legend3D) legend3D.style.display = 'none';
+    } else {
+      // Switch to 3D
+      threeContainer.style.pointerEvents = 'auto';
+      threeContainer.style.visibility = 'visible';
+
+      mapContainer.style.pointerEvents = 'none';
+      mapContainer.style.visibility = 'hidden';
+      threeModule.initThreeScene();
+      window.threeLoaded = true;
+
+      if (legend3D) legend3D.style.display = 'block';
+    }
+  });
 
   map.on('move', () => {
     const center = map.getCenter();
@@ -214,6 +218,4 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     window.dispatchEvent(event);
   });
-
-
 });
