@@ -5,7 +5,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import buildingsUrl from '../assets/data/buildings.geojson?url';
 import { setupBuildingInteraction } from "../buildings/buildingInteraction.js";
 import { Group } from "@tweenjs/tween.js";
-import { initBuildingDetailView } from "../buildings/buildingmenu.js";
+import { initBuildingDetailView, showBuildingDetailView } from "../buildings/buildingmenu.js";
 
 const CENTER_LON = 26.045184;
 const CENTER_LAT = 44.4349638;
@@ -23,11 +23,18 @@ export function initThreeScene() {
   const buildingData = []; // store mesh + shape for spatial checks (used at indoor sensors)
 
   camera = new THREE.PerspectiveCamera(
-    75, window.innerWidth / window.innerHeight, 0.1, 5000
+    60,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    5000
   );
-  camera.position.set(x, y, 1000);
+  
+  // Position camera slightly tilted from above
+  const cameraHeight = 1000;
+  const tiltOffset = cameraHeight * 0.1;
+  camera.position.set(x, y - tiltOffset, cameraHeight);
   camera.lookAt(x, y, 0);
-  camera.up.set(0, 1, 0);
+  camera.up.set(0, 0, 1);
 
   const canvas = document.getElementById("three-canvas");
   const renderer = new THREE.WebGLRenderer({ canvas });
@@ -37,18 +44,80 @@ export function initThreeScene() {
 
   scene.add(new THREE.AmbientLight(0x888888));
   const sun = new THREE.DirectionalLight(0xffffff, 1);
-  sun.position.set(100, 100, 300);
+  sun.position.set(100, -100, 300);
   scene.add(sun);
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableZoom = true;
-  controls.enableRotate = false;
-  setTimeout(() => {
-    controls.enableRotate = true;
-  }, 500);
+  controls.enableRotate = true;
   controls.enablePan = true;
+  
+  // Set reasonable zoom limits
+  controls.minDistance = 100;
+  controls.maxDistance = 3000;
+  
+  // Restrict vertical rotation to prevent seeing underneath
+  controls.minPolarAngle = 0.1;
+  controls.maxPolarAngle = Math.PI * 0.35;
+  
+  // Allow full horizontal rotation
+  controls.minAzimuthAngle = -Math.PI;
+  controls.maxAzimuthAngle = Math.PI;
+
+  // Make rotation smoother
+  controls.rotateSpeed = 0.5;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.1;
+
+  // Default mouse button settings
+  controls.mouseButtons = {
+    LEFT: THREE.MOUSE.ROTATE,
+    MIDDLE: THREE.MOUSE.DOLLY,
+    RIGHT: THREE.MOUSE.PAN
+  };
+
+  // Override the mousedown event handler
+  const originalMouseDown = controls.domElement.onmousedown;
+  controls.domElement.addEventListener('mousedown', function(event) {
+    if (event.ctrlKey) {
+      // Temporarily change the mouse button mapping
+      controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+    } else {
+      controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    }
+    if (originalMouseDown) {
+      originalMouseDown.call(controls.domElement, event);
+    }
+  });
+
+  // Reset mouse buttons on mouse up
+  controls.domElement.addEventListener('mouseup', () => {
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+  });
+
+  // Handle window blur to reset state
+  window.addEventListener('blur', () => {
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+  });
+
+  controls.touches = {
+    ONE: THREE.TOUCH.ROTATE,
+    TWO: THREE.TOUCH.DOLLY_PAN
+  };
+
   controls.target.set(x, y, 0);
   controls.update();
+
+  // Add a ground plane to prevent z-fighting and ensure we can't see underneath
+  const groundGeometry = new THREE.PlaneGeometry(20000, 20000);  // Made larger to ensure coverage
+  const groundMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0xf5f5f5,
+    side: THREE.FrontSide  // Only render top side
+  });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.z = -0.1;
+  scene.add(ground);
 
   setupBuildingInteraction(scene, camera, controls);
 
@@ -133,7 +202,7 @@ export function initThreeScene() {
 
   function animate() {
     requestAnimationFrame(animate);
-    controls.update();
+    controls.update(); // Required for damping
     renderer.render(scene, camera);
   }
 
@@ -222,15 +291,24 @@ function tileYToLat(y, zoom) {
 }
 
 function addSensorSpheres(scene, buildingData, indoorSensors) {
-  const SENSOR_RADIUS = 5;
+  const SENSOR_RADIUS = 2; // Reduced size for both types of indicators
+  const HOVER_SCALE = 1.5; // Scale factor when hovering
 
+  // Create a map to track which sensors are assigned to buildings
+  const assignedSensors = new Set();
+
+  // First, process building-assigned sensors
   buildingData.forEach(({ mesh, shape }) => {
     const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
 
     const localSensors = indoorSensors.filter(sensor => {
       const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
       const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-      return isPointInPolygon(polygon, new THREE.Vector2(px, py));
+      const isInside = isPointInPolygon(polygon, new THREE.Vector2(px, py));
+      if (isInside) {
+        assignedSensors.add(sensor.sensor_id);
+      }
+      return isInside;
     });
 
     mesh.userData.indoorSensors = localSensors;
@@ -240,64 +318,140 @@ function addSensorSpheres(scene, buildingData, indoorSensors) {
       const center = bbox.getCenter(new THREE.Vector3());
 
       const sphere = new THREE.Mesh(
-        new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+        new THREE.SphereGeometry(SENSOR_RADIUS, 12, 12),
+        new THREE.MeshStandardMaterial({ 
+          color: 0xff0000,
+          transparent: true,
+          opacity: 0.8,
+          emissive: 0xff0000,
+          emissiveIntensity: 0.3
+        })
       );
 
-      sphere.position.set(center.x, center.y, bbox.max.z + 20);
-      sphere.scale.setScalar(1 + localSensors.length * 0.2);
-
+      // Position slightly above the building
+      sphere.position.set(center.x, center.y, bbox.max.z + 5);
+      
+      // Add hover effect
+      sphere.userData.isBuilding = true;
+      sphere.userData.originalScale = sphere.scale.clone();
+      
       mesh.add(sphere);
     }
   });
-}
 
-
-// IMPORTANTA PENTRU DEBUG
-/*function addSensorSpheres(scene, buildingData, indoorSensors) {
-  const SENSOR_RADIUS = 5;
-  const DEBUG_RADIUS = 2;
-
+  // Then, show unassigned sensors
   indoorSensors.forEach(sensor => {
-    const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
-    const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-
-    const debugSphere = new THREE.Mesh(
-      new THREE.SphereGeometry(DEBUG_RADIUS, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0x0000ff })
-    );
-    debugSphere.position.set(px, py, 1);
-    scene.add(debugSphere);
-  });
-
-  buildingData.forEach(({ mesh, shape }) => {
-    const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
-
-    const localSensors = indoorSensors.filter(sensor => {
+    if (!assignedSensors.has(sensor.sensor_id)) {
       const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
       const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-      return isPointInPolygon(polygon, new THREE.Vector2(px, py));
-    });
 
-    mesh.userData.indoorSensors = localSensors;
-
-    if (localSensors.length > 0) {
-      const bbox = new THREE.Box3().setFromObject(mesh);
-      const center = bbox.getCenter(new THREE.Vector3());
-
-      const sensorSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0xff0000 })
+      const unassignedSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(SENSOR_RADIUS, 12, 12),
+        new THREE.MeshStandardMaterial({ 
+          color: 0x00ff00,
+          transparent: true,
+          opacity: 0.8,
+          emissive: 0x00ff00,
+          emissiveIntensity: 0.3
+        })
       );
+      
+      unassignedSphere.position.set(px, py, 5); // Place slightly above ground
+      unassignedSphere.userData = {
+        isUnassignedSensor: true,
+        sensorData: sensor,
+        originalScale: unassignedSphere.scale.clone()
+      };
+      
+      scene.add(unassignedSphere);
 
-      sensorSphere.position.set(center.x, center.y, bbox.max.z + 20);
-      sensorSphere.scale.setScalar(1 + localSensors.length * 0.2);
+      // Add click event for unassigned sensors
+      unassignedSphere.userData.onClick = () => {
+        // Create a mock feature for the unassigned sensor
+        const mockFeature = {
+          properties: {
+            name: `Unassigned Sensor ${sensor.sensor_id}`,
+            addr: { street: `Lat: ${sensor.lat}, Lon: ${sensor.lon}` }
+          }
+        };
 
-      mesh.add(sensorSphere);
+        // Create a mock building object with the sensor data
+        const mockBuilding = unassignedSphere;
+        mockBuilding.userData.indoorSensors = [sensor];
+
+        // Update global state
+        window.selectedBuilding = mockBuilding;
+        window.selectedFeature = mockFeature;
+
+        // Show the building menu with the sensor data
+        showBuildingDetailView(mockBuilding, mockFeature);
+      };
     }
   });
-}*/
 
+  // Add hover effect for all sensor spheres
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+
+  window.addEventListener('mousemove', (event) => {
+    const canvas = document.getElementById('three-canvas');
+    const rect = canvas.getBoundingClientRect();
+    
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const spheres = scene.children.filter(obj => 
+      obj.userData.isUnassignedSensor || 
+      (obj.children && obj.children.some(child => child.userData.isBuilding))
+    );
+
+    const intersects = raycaster.intersectObjects(spheres, true);
+
+    // Reset all spheres to original scale
+    spheres.forEach(obj => {
+      if (obj.userData.isUnassignedSensor) {
+        obj.scale.copy(obj.userData.originalScale);
+      } else {
+        obj.children.forEach(child => {
+          if (child.userData.isBuilding) {
+            child.scale.copy(child.userData.originalScale);
+          }
+        });
+      }
+    });
+
+    // Scale up hovered sphere
+    if (intersects.length > 0) {
+      const object = intersects[0].object;
+      if (object.userData.isUnassignedSensor || object.userData.isBuilding) {
+        object.scale.multiplyScalar(HOVER_SCALE);
+      }
+    }
+  });
+
+  // Add click handler for unassigned sensors
+  window.addEventListener('click', (event) => {
+    const canvas = document.getElementById('three-canvas');
+    const rect = canvas.getBoundingClientRect();
+    
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const unassignedSpheres = scene.children.filter(obj => obj.userData.isUnassignedSensor);
+    const intersects = raycaster.intersectObjects(unassignedSpheres);
+
+    if (intersects.length > 0) {
+      const sphere = intersects[0].object;
+      if (sphere.userData.onClick) {
+        sphere.userData.onClick();
+      }
+    }
+  });
+}
 
 function isPointInPolygon(polygon, point) {
   let inside = false;
@@ -307,7 +461,7 @@ function isPointInPolygon(polygon, point) {
     const xj = polygon[j].x, yj = polygon[j].y;
 
     const intersect = ((yi > point.y) !== (yj > point.y)) &&
-                      (point.x < (xj - xi) * (point.y - yi) / (yj - yi + 0.000001) + xi);
+                     (point.x < (xj - xi) * (point.y - yi) / (yj - yi + 0.000001) + xi);
 
     if (intersect) inside = !inside;
   }

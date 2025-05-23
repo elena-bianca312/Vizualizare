@@ -4,164 +4,148 @@ import * as THREE from "three";
 import { Tween, Easing } from "@tweenjs/tween.js";
 import { tweenGroup, zoomToBuilding } from "../views/threeview.js";
 import { showBuildingDetailView } from "./buildingmenu.js";
+import { destroyCharts } from "../charts/createSensorChart.js";
 
+let selectedObject = null;
+let scene = null;
+let camera = null;
+let controls = null;
 
 export let selectedBuilding = null;
-let currentHighlight = null;
-const originalMaterials = new Map();
+export let selectedFeature = null;
 
-export function setupBuildingInteraction(scene, camera, controls) {
-  const canvas = document.getElementById("three-canvas");
+export function setupBuildingInteraction(threeScene, threeCamera, threeControls) {
+  scene = threeScene;
+  camera = threeCamera;
+  controls = threeControls;
+
+  const canvas = document.getElementById('three-canvas');
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
-
-  function highlightBuilding(building) {
-    if (building === selectedBuilding) return;
-
-    const allMeshes = [building, ...building.children.filter(c => c.isMesh)];
-
-    allMeshes.forEach(mesh => {
-      originalMaterials.set(mesh, mesh.material.clone());
-      mesh.material.color.set(0x00ff00); // Highlight color
-    });
-
-    currentHighlight = building;
-  }
-
-  function resetHighlight() {
-    if (currentHighlight && currentHighlight !== selectedBuilding) {
-      const allMeshes = [currentHighlight, ...currentHighlight.children.filter(c => c.isMesh)];
-
-      allMeshes.forEach(mesh => {
-        const original = originalMaterials.get(mesh);
-        if (original) {
-          mesh.material.copy(original);
-          originalMaterials.delete(mesh);
-        }
-      });
-
-      currentHighlight = null;
-    }
-  }
-
-  function focusOnBuilding(building) {
-    const targetPosition = building.position.clone().add(new THREE.Vector3(0, 0, 50));
-    const targetLookAt = building.position.clone();
-
-    new Tween(camera.position)
-      .to(targetPosition, 1000)
-      .easing(Easing.Quadratic.InOut)
-      .start(tweenGroup);
-
-    new Tween(controls.target)
-      .to(targetLookAt, 1000)
-      .easing(Easing.Quadratic.InOut)
-      .start(tweenGroup);
-  }
-
-  function showBuildingInfo(feature) {
-    const infoPanel = document.getElementById('building-info');
-    infoPanel.innerHTML = `
-      <h3>${feature.properties.name || 'Unnamed Building'}</h3>
-      <p>Levels: ${feature.properties['building:levels'] || 'N/A'}</p>
-    `;
-  }
-
-  function getAllBuildingMeshes() {
-    const meshes = [];
-
-    scene.children.forEach(obj => {
-      if (obj.userData?.feature) {
-        obj.traverse(child => {
-          if (child.isMesh) {
-            meshes.push(child);
-          }
-        });
-      }
-    });
-
-    return meshes;
-  }
-
-    // Hover effect
-    canvas.addEventListener('mousemove', (event) => {
-    if (isMouseOverDetailView(event)) return;
-
-    const rect = canvas.getBoundingClientRect();
-    mouse.set(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1
-    );
-
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(getAllBuildingMeshes(), false);
-
-    if (intersects.length > 0) {
-      let building = intersects[0].object;
-      while (building && !building.userData?.feature) {
-        building = building.parent;
-      }
-      if (building && currentHighlight !== building) {
-        resetHighlight();
-        highlightBuilding(building);
-      }
-    } else {
-      resetHighlight();
-    }
-  });
-
-  // Click handling
   canvas.addEventListener('click', (event) => {
-    if (isMouseOverDetailView(event)) return;
+    // Get mouse position
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    if (currentHighlight) {
-      if (selectedBuilding) {
-        const meshes = [selectedBuilding, ...selectedBuilding.children.filter(c => c.isMesh)];
-        meshes.forEach(mesh => {
-          const original = originalMaterials.get(mesh);
-          if (original) mesh.material.copy(original);
-        });
+    // Update the picking ray with the camera and mouse position
+    raycaster.setFromCamera(mouse, camera);
+
+    // Calculate objects intersecting the picking ray
+    const intersects = raycaster.intersectObjects(scene.children || [], true);
+
+    // First check for unassigned sensor clicks
+    const sensorHit = intersects.find(hit => hit.object.userData?.isUnassignedSensor);
+    if (sensorHit) {
+      handleUnassignedSensorClick(sensorHit.object);
+      return;
+    }
+
+    // Then check for building hits
+    const buildingHit = intersects.find(hit => {
+      const obj = hit.object;
+      // Traverse up to find the root mesh
+      let parent = obj;
+      while (parent.parent && !(parent.userData && parent.userData.feature)) {
+        parent = parent.parent;
+      }
+      return parent.userData && parent.userData.feature;
+    });
+
+    if (buildingHit) {
+      // Get the root building mesh
+      let buildingMesh = buildingHit.object;
+      while (buildingMesh.parent && !(buildingMesh.userData && buildingMesh.userData.feature)) {
+        buildingMesh = buildingMesh.parent;
       }
 
-      selectedBuilding = currentHighlight;
+      // Clear previous selection and charts
+      clearSelectedBuilding();
 
-      const selectedMeshes = [selectedBuilding, ...selectedBuilding.children.filter(c => c.isMesh)];
-      selectedMeshes.forEach(mesh => {
-        mesh.material.color.set(0x3366ff); // Color kept after select
-      });
+      // Set new selection first
+      selectedBuilding = buildingMesh;
+      selectedFeature = buildingMesh.userData.feature;
 
-      focusOnBuilding(currentHighlight);
-      showBuildingInfo(currentHighlight.userData.feature);
-      showBuildingDetailView(currentHighlight, currentHighlight.userData.feature);
-      zoomToBuilding(currentHighlight);
+      // Update materials
+      selectBuilding(buildingMesh);
+
+      // Show building details
+      showBuildingDetailView(buildingMesh, buildingMesh.userData.feature);
+    } else {
+      clearSelectedBuilding();
     }
   });
+}
 
-  function isMouseOverDetailView(event) {
-    const menu = document.getElementById('building-detail-view');
-    if (!menu || menu.style.display === 'none') return false;
-
-    const rect = menu.getBoundingClientRect();
-    return (
-      event.clientX >= rect.left &&
-      event.clientX <= rect.right &&
-      event.clientY >= rect.top &&
-      event.clientY <= rect.bottom
-    );
+export function selectBuilding(building) {
+  // Set new selection
+  selectedObject = building;
+  if (selectedObject) {
+    // Store original materials
+    selectedObject.userData.originalMaterials = [];
+    selectedObject.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        selectedObject.userData.originalMaterials.push({
+          mesh: child,
+          material: child.material.clone()
+        });
+        // Create highlighted material
+        const highlightedMaterial = child.material.clone();
+        highlightedMaterial.emissive = new THREE.Color(0x666666);
+        highlightedMaterial.emissiveIntensity = 0.5;
+        child.material = highlightedMaterial;
+      }
+    });
   }
 }
 
 export function clearSelectedBuilding() {
-  if (selectedBuilding) {
-    const meshes = [selectedBuilding, ...selectedBuilding.children.filter(c => c.isMesh)];
-    meshes.forEach(mesh => {
-      const original = originalMaterials.get(mesh);
-      if (original) {
-        mesh.material.copy(original);
-        originalMaterials.delete(mesh);
-      }
-    });
-    selectedBuilding = null;
+  // Destroy any existing charts first
+  destroyCharts();
+
+  // Clear materials
+  if (selectedObject) {
+    // Restore original materials
+    if (selectedObject.userData.originalMaterials) {
+      selectedObject.userData.originalMaterials.forEach(({mesh, material}) => {
+        mesh.material = material;
+      });
+    }
+    selectedObject = null;
   }
+
+  // Clear selection state
+  selectedBuilding = null;
+  selectedFeature = null;
+}
+
+// Handle unassigned sensor clicks
+function handleUnassignedSensorClick(sensorSphere) {
+  // Clear previous selection
+  clearSelectedBuilding();
+
+  const sensorData = sensorSphere.userData.sensorData;
+  
+  // Create a temporary feature object for the unassigned sensor
+  const tempFeature = {
+    properties: {
+      name: `Unassigned Sensor ${sensorData.sensor_id}`,
+      "building:levels": 1,
+      building: "Sensor Location",
+      addr: { street: `Lat: ${sensorData.lat}, Lon: ${sensorData.lon}` }
+    }
+  };
+
+  // Set up the sensor sphere as the building object
+  sensorSphere.userData.indoorSensors = [sensorData];
+  sensorSphere.userData.feature = tempFeature;  // Add feature data to the sphere
+
+  // Update selection state
+  selectedBuilding = sensorSphere;
+  selectedFeature = tempFeature;
+  selectedObject = sensorSphere;
+
+  // Show sensor details
+  showBuildingDetailView(sensorSphere, tempFeature);
 }

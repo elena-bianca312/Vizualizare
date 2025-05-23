@@ -28,3 +28,22 @@ timestamp,location,sensor_id,sensor_type,value,unit,lat,lon,IsIndoor,Floor
 2025-04-26T12:20:00Z,Bucharest,HUM002,Humidity,47.1,Percent,44.4350376,26.0474506,True,2.0
 2025-04-27T12:05:00Z,Bucharest,HUM003,Humidity,42.7,Percent,44.4350376,26.0474506,True,1.0
 2025-04-28T12:05:00Z,Bucharest,HUM003,Humidity,43.3,Percent,44.4350376,26.0474506,True,1.0
+
+# Outdoor sensors (not assigned to buildings)
+2025-04-26T12:00:00Z,Bucharest Park,OUT_TEMP001,Temperature,21.5,Celsius,44.4360000,26.0480000,False,
+2025-04-26T12:05:00Z,Bucharest Park,OUT_TEMP001,Temperature,21.8,Celsius,44.4360000,26.0480000,False,
+2025-04-26T12:10:00Z,Bucharest Park,OUT_TEMP001,Temperature,22.1,Celsius,44.4360000,26.0480000,False,
+2025-04-26T12:15:00Z,Bucharest Park,OUT_TEMP001,Temperature,22.4,Celsius,44.4360000,26.0480000,False,
+2025-04-26T12:20:00Z,Bucharest Park,OUT_TEMP001,Temperature,22.7,Celsius,44.4360000,26.0480000,False,
+
+2025-04-26T12:00:00Z,Bucharest Square,OUT_HUM001,Humidity,55.0,Percent,44.4340000,26.0460000,False,
+2025-04-26T12:05:00Z,Bucharest Square,OUT_HUM001,Humidity,54.5,Percent,44.4340000,26.0460000,False,
+2025-04-26T12:10:00Z,Bucharest Square,OUT_HUM001,Humidity,54.0,Percent,44.4340000,26.0460000,False,
+2025-04-26T12:15:00Z,Bucharest Square,OUT_HUM001,Humidity,53.5,Percent,44.4340000,26.0460000,False,
+2025-04-26T12:20:00Z,Bucharest Square,OUT_HUM001,Humidity,53.0,Percent,44.4340000,26.0460000,False,
+
+2025-04-26T12:00:00Z,Bucharest Avenue,OUT_AIR001,Air Quality,65.0,AQI,44.4370000,26.0440000,False,
+2025-04-26T12:05:00Z,Bucharest Avenue,OUT_AIR001,Air Quality,66.2,AQI,44.4370000,26.0440000,False,
+2025-04-26T12:10:00Z,Bucharest Avenue,OUT_AIR001,Air Quality,67.5,AQI,44.4370000,26.0440000,False,
+2025-04-26T12:15:00Z,Bucharest Avenue,OUT_AIR001,Air Quality,68.1,AQI,44.4370000,26.0440000,False,
+2025-04-26T12:20:00Z,Bucharest Avenue,OUT_AIR001,Air Quality,67.8,AQI,44.4370000,26.0440000,False,
