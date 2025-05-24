@@ -180,7 +180,7 @@ function updateDetailInfo(feature) {
 
   // Gather all unique sensor types
   let allSensors = [];
-  if (selectedBuilding.userData.group === 'indoor') {
+  if (selectedBuilding.userData.group === 'in') {
     allSensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>
       entry.readings.map(reading => reading.sensor_type)
     );
