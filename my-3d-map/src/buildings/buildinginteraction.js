@@ -24,6 +24,9 @@ export function setupBuildingInteraction(scene, camera, controls) {
     allMeshes.forEach(mesh => {
       originalMaterials.set(mesh, mesh.material.clone());
       mesh.material.color.set(0x00ff00); // Highlight color
+      if (building.userData?.group === "outdoor") {
+        mesh.scale.set(1.5, 1.5, 1.5);
+      }
     });
 
     currentHighlight = building;
@@ -35,6 +38,7 @@ export function setupBuildingInteraction(scene, camera, controls) {
 
       allMeshes.forEach(mesh => {
         const original = originalMaterials.get(mesh);
+        mesh.scale.set(1, 1, 1);
         if (original) {
           mesh.material.copy(original);
           originalMaterials.delete(mesh);
@@ -68,19 +72,17 @@ export function setupBuildingInteraction(scene, camera, controls) {
     `;
   }
 
-  function getAllBuildingMeshes() {
+  function getAllInteractiveMeshes() {
     const meshes = [];
 
     scene.children.forEach(obj => {
-      if (obj.userData?.feature) {
+      if (obj.userData?.feature || obj.userData?.group === "outdoor") {
         obj.traverse(child => {
-          if (child.isMesh) {
+          if (child.isMesh)
             meshes.push(child);
-          }
         });
       }
     });
-
     return meshes;
   }
 
@@ -95,11 +97,11 @@ export function setupBuildingInteraction(scene, camera, controls) {
     );
 
     raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(getAllBuildingMeshes(), false);
+    const intersects = raycaster.intersectObjects(getAllInteractiveMeshes(), false);
 
     if (intersects.length > 0) {
-      let building = intersects[0].object;
-      while (building && !building.userData?.feature) {
+      let building = intersects[0]?.object;
+      while (building && !building.userData?.feature && building.userData?.group !== "outdoor") {
         building = building.parent;
       }
       if (building && currentHighlight !== building) {
@@ -121,6 +123,7 @@ export function setupBuildingInteraction(scene, camera, controls) {
         meshes.forEach(mesh => {
           const original = originalMaterials.get(mesh);
           if (original) mesh.material.copy(original);
+          mesh.scale.set(1, 1, 1);
         });
       }
 
@@ -130,6 +133,36 @@ export function setupBuildingInteraction(scene, camera, controls) {
       selectedMeshes.forEach(mesh => {
         mesh.material.color.set(0x3366ff); // Color kept after select
       });
+
+      if (currentHighlight.userData?.group === "outdoor") {
+        const sensorData = {
+          sensor_id: currentHighlight.userData.sensorId,
+          readings: currentHighlight.userData.allReadings
+        };
+
+        const pseudoFeature = {
+          properties: {
+            name: "Outdoor Sensor",
+            "building:levels": 1
+          }
+        };
+
+        const allReadings = currentHighlight.userData.allReadings || [];
+        const flattenedReadings = allReadings.map(r => ({
+          ...r,
+          Floor: r.Floor ?? 'unknown'
+        }));
+
+        window.selectedBuilding = {
+          userData: {
+            indoorSensors: flattenedReadings
+          }
+        };
+
+        showBuildingInfo(pseudoFeature);
+        showBuildingDetailView(currentHighlight, pseudoFeature);
+        return;
+      }
 
       focusOnBuilding(currentHighlight);
       showBuildingInfo(currentHighlight.userData.feature);
@@ -187,6 +220,7 @@ export function clearSelectedBuilding() {
         mesh.material.copy(original);
         originalMaterials.delete(mesh);
       }
+      mesh.scale.set(1, 1, 1);
     });
     selectedBuilding = null;
   }
