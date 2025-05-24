@@ -9,6 +9,7 @@ import { createSensorChart, destroyCharts } from "../charts/createSensorChart.js
 import { restoreOriginalCamera } from "../views/threeview.js";
 import { filterSensorDataByTimeRange } from "../assets/utils/timeUtils.js";
 import { destroyChartsForOtherFloors } from "../charts/chartUtils.js";
+import { createSensorTypeDropdown } from "../sensors/sensorTypeDropdown.js";
 // For animation handling
 const detailTweenGroup = new Group();
 
@@ -165,13 +166,11 @@ export function showBuildingDetailView(building, feature) {
  */
 function updateDetailInfo(feature) {
   const infoPanel = document.getElementById('building-detail-info');
-  // Get properties from feature
   const name = feature.properties.name || 'Unnamed Building';
   const levels = feature.properties["building:levels"] || 1;
   const buildingType = feature.properties.building || 'General';
   const address = feature.properties.addr?.street || 'No address available';
 
-  // Clear previous charts
   destroyCharts();
 
   // Calculate default date range (last week from the reference date)
@@ -179,10 +178,33 @@ function updateDetailInfo(feature) {
   const defaultStartDate = new Date(defaultEndDate);
   defaultStartDate.setDate(defaultStartDate.getDate() - 7);
 
-  // Store the initial reference date for comparison
-  window.previousReferenceDate = window.selectedDate;
+  // Gather all unique sensor types
+  let allSensors = [];
+  if (selectedBuilding.userData.group === 'indoor') {
+    allSensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>
+      entry.readings.map(reading => reading.sensor_type)
+    );
+  } else if (selectedBuilding.userData.group === 'outdoor') {
+    allSensors = selectedBuilding.userData.allReadings.map(reading => reading.sensor_type);
+  }
+  const uniqueSensorTypes = Array.from(new Set(allSensors)).sort();
 
-  // Basic building info
+  // Create the sensor type dropdown (returns {html, init})
+  const sensorDropdown = createSensorTypeDropdown(uniqueSensorTypes, (selectedTypes) => {
+    window.selectedSensorTypes = selectedTypes;
+    const startDate = new Date(document.getElementById('start-date').value);
+    const endDate = new Date(document.getElementById('end-date').value);
+    endDate.setHours(23, 59, 59, 999);
+    window.loadAndRenderSensorData(
+      window.selectedFeature,
+      'custom',
+      window.selectedDate,
+      startDate,
+      endDate
+    );
+  });
+
+  // Info panel HTML
   infoPanel.innerHTML = `
     <div class="menu-header">
       <h2>Sensor Data</h2>
@@ -202,6 +224,7 @@ function updateDetailInfo(feature) {
         </div>
         <button id="apply-date-range" style="padding: 5px 10px;">Apply</button>
       </div>
+      ${sensorDropdown.html}
     </div>
     <h2>${name}</h2>
     <div class="building-details">
@@ -218,13 +241,13 @@ function updateDetailInfo(feature) {
         <span class="detail-value">${address}</span>
       </div>
     </div>
-    
     <div class="floor-container">
       ${createFloorTabs(levels)}
       ${createFloorSections(levels)}
     </div>
   `;
 
+  // Set up scroll container for charts (show only selected floor)
   const scrollContainer = document.createElement('div');
   scrollContainer.id = 'charts-scroll-container';
   scrollContainer.style.flex = '1 1 0';
@@ -234,30 +257,22 @@ function updateDetailInfo(feature) {
 
   const selectedTab = document.querySelector('.floor-tab.active');
   const selectedFloor = selectedTab ? selectedTab.dataset.floor : "1";
-  
-  // Clear the scroll container
   scrollContainer.innerHTML = "";
-  
-  // Get the chart container for the selected floor and append it
   const floorDiv = document.getElementById(`charts-floor-${selectedFloor}`);
   if (floorDiv) {
     scrollContainer.appendChild(floorDiv);
   }
-
-  // Append the scroll container to the info panel
   infoPanel.appendChild(scrollContainer);
 
-  // Add event listener for the date range picker
+  // Date range picker
   document.getElementById('apply-date-range').addEventListener('click', function() {
     const startDate = new Date(document.getElementById('start-date').value);
     const endDate = new Date(document.getElementById('end-date').value);
-    endDate.setHours(23, 59, 59, 999); // Set to end of day
-
+    endDate.setHours(23, 59, 59, 999);
     if (startDate > endDate) {
       alert('Start date cannot be after end date');
       return;
     }
-
     if (window.selectedBuilding && window.loadAndRenderSensorData) {
       window.loadAndRenderSensorData(
         window.selectedFeature,
@@ -269,59 +284,41 @@ function updateDetailInfo(feature) {
     }
   });
 
+  // Initialize the sensor type dropdown logic
+  sensorDropdown.init();
+
   // Watch for changes to window.selectedDate
   const checkDateChange = () => {
     if (window.selectedDate !== window.previousReferenceDate) {
       const endDateInput = document.getElementById('end-date');
       const startDateInput = document.getElementById('start-date');
-      const currentEndDate = new Date(endDateInput.value);
-      const previousRefDate = new Date(window.previousReferenceDate);
       const newEndDate = new Date(window.selectedDate);
-      
-      // Update calendar intervals
       const oneWeekAgo = new Date(newEndDate);
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const oneYearAgo = new Date(newEndDate);
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      
-      // Update min and max dates for both calendars
       const maxDate = newEndDate.toISOString().split('T')[0];
       const minDate = oneYearAgo.toISOString().split('T')[0];
-      
       endDateInput.max = maxDate;
       endDateInput.min = minDate;
       startDateInput.max = maxDate;
       startDateInput.min = minDate;
-
-      // Update end date
       endDateInput.value = maxDate;
-      
-      // Adjust start date to be one week prior
       startDateInput.value = oneWeekAgo.toISOString().split('T')[0];
-      
-      // Automatically apply the new date range
       const startDate = new Date(startDateInput.value);
       const endDate = new Date(window.selectedDate);
       endDate.setHours(23, 59, 59, 999);
-
-      if (window.selectedBuilding && window.loadAndRenderSensorData) {
-        window.loadAndRenderSensorData(
-          window.selectedFeature,
-          'custom',
-          window.selectedDate,
-          startDate,
-          endDate
-        );
-      }
-      
+      window.loadAndRenderSensorData(
+        window.selectedFeature,
+        'custom',
+        window.selectedDate,
+        startDate,
+        endDate
+      );
       window.previousReferenceDate = window.selectedDate;
     }
   };
-
-  // Set up an interval to check for date changes
   const dateCheckInterval = setInterval(checkDateChange, 100);
-  
-  // Clean up interval when detail view is closed
   const originalCloseDetailView = closeDetailView;
   closeDetailView = function() {
     clearInterval(dateCheckInterval);
@@ -329,7 +326,7 @@ function updateDetailInfo(feature) {
   };
 
   initializeFloorNavigation();
-  
+
   // Initial load with default date range
   loadAndRenderSensorData(
     window.selectedFeature,
@@ -343,10 +340,9 @@ function updateDetailInfo(feature) {
 
 function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, endDate) {
   try {
-    destroyCharts(); // This should destroy all charts globally if needed
+    destroyCharts();
 
     let sensors = [];
-
     if (selectedBuilding.userData.group === 'indoor') {
       sensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>
         entry.readings.map(reading => ({
@@ -361,12 +357,20 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       }));
     }
 
-    const levels = feature.properties["building:levels"] || 1;
-
-    console.log('Sensors:', sensors);
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
 
-    // Get selected floor
+    // Filter by selected sensor types from dropdown
+    let selectedTypes = window.selectedSensorTypes;
+    if (!selectedTypes || selectedTypes.length === 0) {
+      // Fallback: show all
+      const allSensors = sensors.map(s => s.sensor_type);
+      selectedTypes = Array.from(new Set(allSensors));
+    }
+    if (selectedTypes.length > 0) {
+      sensors = sensors.filter(s => selectedTypes.includes(s.sensor_type));
+    }
+
+    const levels = feature.properties["building:levels"] || 1;
     const activeTab = document.querySelector('.floor-tab.active');
     if (!activeTab) return;
     const selectedFloor = activeTab.dataset.floor;
@@ -374,7 +378,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
     // Destroy charts for other floors and clear their containers
     destroyChartsForOtherFloors(selectedFloor, levels);
 
-    // Now render only for the selected floor
+    // Group sensors by floor
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
       let floor = sensor.Floor;
       if (floor === undefined || floor === null || floor === '') {
@@ -390,7 +394,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
     const container = document.getElementById(`charts-floor-${selectedFloor}`);
     if (container) {
       container.innerHTML = '';
-      window.floorCharts[selectedFloor] = []; // Reset chart refs for this floor
+      window.floorCharts[selectedFloor] = [];
 
       const floorSensors = sensorsByFloor[selectedFloor] || [];
       if (floorSensors.length === 0) {
@@ -451,7 +455,6 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
     });
   }
 }
-
 
 
 
