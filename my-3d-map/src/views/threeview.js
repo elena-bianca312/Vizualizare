@@ -340,6 +340,7 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
     }
 
     mesh.userData.indoorSensors = localSensors;
+    mesh.userData.group = "indoor";
 
     if (localSensors.length > 0) {
       const hasValidTimestamp = showAll || localSensors.some(entry =>
