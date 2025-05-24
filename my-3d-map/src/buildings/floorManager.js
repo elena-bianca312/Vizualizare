@@ -28,19 +28,6 @@ export function createFloorSections(levels) {
   `;
 }
 
-// export function initializeFloorNavigation() {
-//   document.querySelectorAll('.floor-tab').forEach(tab => {
-//     tab.addEventListener('click', () => {
-//       const floor = tab.dataset.floor;
-//       document.querySelectorAll('.floor-section').forEach(section => {
-//         section.style.display = section.dataset.floor === floor ? 'block' : 'none';
-//       });
-//       document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
-//       tab.classList.add('active');
-//     });
-//   });
-// }
-
 export function initializeFloorNavigation() {
 document.querySelectorAll('.floor-tab').forEach(tab => {
   tab.addEventListener('click', () => {

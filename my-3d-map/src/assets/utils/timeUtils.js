@@ -23,9 +23,9 @@ export function getTimeRangeDates(timeRange, referenceDate = new Date()) {
 
 export const timeRanges = {
   last_week: 7 * 24 * 60 * 60 * 1000,
-  last_month: 30 * 24 * 60 * 60 * 1000,
-  last_3_months: 90 * 24 * 60 * 60 * 1000,
-  last_year: 365 * 24 * 60 * 60 * 1000
+  // last_month: 30 * 24 * 60 * 60 * 1000,
+  // last_3_months: 90 * 24 * 60 * 60 * 1000,
+  // last_year: 365 * 24 * 60 * 60 * 1000
 };
 
 export function filterSensorDataByTimeRange(sensors, timeRange, referenceDate) {

@@ -7,7 +7,7 @@ import {clearSelectedBuilding, selectedBuilding} from "./buildingInteraction.js"
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
 import { createSensorChart, destroyCharts } from "../charts/createSensorChart.js";
 import { restoreOriginalCamera } from "../views/threeview.js";
-import { filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
+import { filterSensorDataByTimeRange } from "../assets/utils/timeUtils.js";
 import { destroyChartsForOtherFloors } from "../charts/chartUtils.js";
 // For animation handling
 const detailTweenGroup = new Group();
@@ -174,17 +174,34 @@ function updateDetailInfo(feature) {
   // Clear previous charts
   destroyCharts();
 
+  // Calculate default date range (last week from the reference date)
+  const defaultEndDate = window.selectedDate ? new Date(window.selectedDate) : new Date();
+  const defaultStartDate = new Date(defaultEndDate);
+  defaultStartDate.setDate(defaultStartDate.getDate() - 7);
+
+  // Store the initial reference date for comparison
+  window.previousReferenceDate = window.selectedDate;
+
   // Basic building info
   infoPanel.innerHTML = `
     <div class="menu-header">
-      <h2>Sensor Data - <span id="time-range-display">Last Week</span></h2>
-      <label for="time-range-select">Show:</label>
-      <select id="time-range-select">
-        <option value="last_week">Last Week</option>
-        <option value="last_month">Last Month</option>
-        <option value="last_3_months">Last 3 Months</option>
-        <option value="last_year">Last Year</option>
-      </select>
+      <h2>Sensor Data</h2>
+      <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+        <div>
+          <label for="start-date">From:</label>
+          <input type="date" id="start-date" 
+                 value="${defaultStartDate.toISOString().split('T')[0]}"
+                 style="margin-left: 5px;">
+        </div>
+        <div>
+          <label for="end-date">To:</label>
+          <input type="date" id="end-date" 
+                 value="${defaultEndDate.toISOString().split('T')[0]}"
+                 style="margin-left: 5px;"
+                 max="${new Date().toISOString().split('T')[0]}">
+        </div>
+        <button id="apply-date-range" style="padding: 5px 10px;">Apply</button>
+      </div>
     </div>
     <h2>${name}</h2>
     <div class="building-details">
@@ -230,19 +247,21 @@ function updateDetailInfo(feature) {
   // Append the scroll container to the info panel
   infoPanel.appendChild(scrollContainer);
 
-  document.getElementById('time-range-select').addEventListener('change', function() {
-  window.selectedTimeRange = this.value;
-  document.getElementById('time-range-display').textContent = {
-    last_week: 'Last Week',
-    last_month: 'Last Month',
-    last_3_months: 'Last 3 Months',
-    last_year: 'Last Year'
-    }[window.selectedTimeRange];
+  // Add event listener for the date range picker
+  document.getElementById('apply-date-range').addEventListener('click', function() {
+    const startDate = new Date(document.getElementById('start-date').value);
+    const endDate = new Date(document.getElementById('end-date').value);
+    endDate.setHours(23, 59, 59, 999); // Set to end of day
+
+    if (startDate > endDate) {
+      alert('Start date cannot be after end date');
+      return;
+    }
+
     if (window.selectedBuilding && window.loadAndRenderSensorData) {
-      const { startDate, endDate } = getTimeRangeDates(window.selectedTimeRange, window.selectedDate);
       window.loadAndRenderSensorData(
         window.selectedFeature,
-        window.selectedTimeRange || 'last_week',
+        'custom',
         window.selectedDate,
         startDate,
         endDate
@@ -250,14 +269,74 @@ function updateDetailInfo(feature) {
     }
   });
 
+  // Watch for changes to window.selectedDate
+  const checkDateChange = () => {
+    if (window.selectedDate !== window.previousReferenceDate) {
+      const endDateInput = document.getElementById('end-date');
+      const startDateInput = document.getElementById('start-date');
+      const currentEndDate = new Date(endDateInput.value);
+      const previousRefDate = new Date(window.previousReferenceDate);
+      const newEndDate = new Date(window.selectedDate);
+      
+      // Update calendar intervals
+      const oneWeekAgo = new Date(newEndDate);
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const oneYearAgo = new Date(newEndDate);
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      
+      // Update min and max dates for both calendars
+      const maxDate = newEndDate.toISOString().split('T')[0];
+      const minDate = oneYearAgo.toISOString().split('T')[0];
+      
+      endDateInput.max = maxDate;
+      endDateInput.min = minDate;
+      startDateInput.max = maxDate;
+      startDateInput.min = minDate;
+
+      // Update end date
+      endDateInput.value = maxDate;
+      
+      // Adjust start date to be one week prior
+      startDateInput.value = oneWeekAgo.toISOString().split('T')[0];
+      
+      // Automatically apply the new date range
+      const startDate = new Date(startDateInput.value);
+      const endDate = new Date(window.selectedDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      if (window.selectedBuilding && window.loadAndRenderSensorData) {
+        window.loadAndRenderSensorData(
+          window.selectedFeature,
+          'custom',
+          window.selectedDate,
+          startDate,
+          endDate
+        );
+      }
+      
+      window.previousReferenceDate = window.selectedDate;
+    }
+  };
+
+  // Set up an interval to check for date changes
+  const dateCheckInterval = setInterval(checkDateChange, 100);
+  
+  // Clean up interval when detail view is closed
+  const originalCloseDetailView = closeDetailView;
+  closeDetailView = function() {
+    clearInterval(dateCheckInterval);
+    originalCloseDetailView();
+  };
+
   initializeFloorNavigation();
-  const { startDate, endDate } = getTimeRangeDates(window.selectedTimeRange || 'last_week', window.selectedDate);
+  
+  // Initial load with default date range
   loadAndRenderSensorData(
     window.selectedFeature,
-    window.selectedTimeRange || 'last_week',
+    'custom',
     window.selectedDate,
-    startDate,
-    endDate
+    defaultStartDate,
+    defaultEndDate
   );
 }
 
