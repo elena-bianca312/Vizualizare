@@ -208,7 +208,6 @@ function updateDetailInfo(feature) {
     </div>
   `;
 
-  // After setting infoPanel.innerHTML ...
   const scrollContainer = document.createElement('div');
   scrollContainer.id = 'charts-scroll-container';
   scrollContainer.style.flex = '1 1 0';
@@ -216,18 +215,17 @@ function updateDetailInfo(feature) {
   scrollContainer.style.maxHeight = '60vh';
   scrollContainer.style.marginTop = '16px';
 
-  // Move all floor chart containers into this scroll container
-  for (let i = 1; i <= levels; i++) {
-    const floorDiv = document.getElementById(`charts-floor-${i}`);
-    if (floorDiv) {
-      scrollContainer.appendChild(floorDiv);
-    }
+  const selectedTab = document.querySelector('.floor-tab.active');
+  const selectedFloor = selectedTab ? selectedTab.dataset.floor : "1";
+  
+  // Clear the scroll container
+  scrollContainer.innerHTML = "";
+  
+  // Get the chart container for the selected floor and append it
+  const floorDiv = document.getElementById(`charts-floor-${selectedFloor}`);
+  if (floorDiv) {
+    scrollContainer.appendChild(floorDiv);
   }
-
-  const spacer = document.createElement('div');
-  spacer.style.height = '1000px';
-  spacer.style.width = '100%';
-  scrollContainer.appendChild(spacer);
 
   // Append the scroll container to the info panel
   infoPanel.appendChild(scrollContainer);
