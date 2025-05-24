@@ -307,24 +307,47 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
   const showAll = document.getElementById("show-all-sensors")?.checked;
   const selectedDate = window.selectedDate;
 
+  const sensorMap = new Map();
+
+  indoorSensors.forEach(sensor => {
+    if (!sensor.sensor_id || !sensor.timestamp) return;
+
+    if (!sensorMap.has(sensor.sensor_id)) {
+      sensorMap.set(sensor.sensor_id, []);
+    }
+
+    sensorMap.get(sensor.sensor_id).push(sensor);
+  });
+
   buildingData.forEach(({ mesh, shape }) => {
     const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
 
-    const localSensors = indoorSensors.filter(sensor => {
-      const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
-      const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-      const isInside = isPointInPolygon(polygon, new THREE.Vector2(px, py));
+    const localSensors = [];
 
-      if (!isInside) return false;
-      if (showAll) return true;
+    for (const [sensorId, readings] of sensorMap.entries()) {
+      const anyReadingInside = readings.some(sensor => {
+        const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
+        const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+        return isPointInPolygon(polygon, new THREE.Vector2(px, py));
+      });
 
-      // Only include if we have a matching timestamp
-      return sensor.timestamp?.startsWith(selectedDate);
-    });
+      if (!anyReadingInside) continue;
+
+      localSensors.push({
+        sensor_id: sensorId,
+        readings: readings
+      });
+    }
 
     mesh.userData.indoorSensors = localSensors;
 
     if (localSensors.length > 0) {
+      const hasValidTimestamp = showAll || localSensors.some(entry =>
+        entry.readings.some(r => r.timestamp?.startsWith(selectedDate))
+      );
+
+      if (!hasValidTimestamp) return;
+
       const bbox = new THREE.Box3().setFromObject(mesh);
       const center = bbox.getCenter(new THREE.Vector3());
 
@@ -336,59 +359,13 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
       sphere.position.set(center.x, center.y, bbox.max.z + 2);
 
       sphere.userData = {
-        group: "indoor"
+        group: "indoor",
       };
 
       mesh.add(sphere);
     }
   });
 }
-
-
-// IMPORTANTA PENTRU DEBUG
-/*function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
-  const SENSOR_RADIUS = 5;
-  const DEBUG_RADIUS = 2;
-
-  indoorSensors.forEach(sensor => {
-    const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
-    const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-
-    const debugSphere = new THREE.Mesh(
-      new THREE.SphereGeometry(DEBUG_RADIUS, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0x0000ff })
-    );
-    debugSphere.position.set(px, py, 1);
-    scene.add(debugSphere);
-  });
-
-  buildingData.forEach(({ mesh, shape }) => {
-    const polygon = shape.getPoints().map(p => p.clone().add(mesh.position));
-
-    const localSensors = indoorSensors.filter(sensor => {
-      const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
-      const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
-      return isPointInPolygon(polygon, new THREE.Vector2(px, py));
-    });
-
-    mesh.userData.indoorSensors = localSensors;
-
-    if (localSensors.length > 0) {
-      const bbox = new THREE.Box3().setFromObject(mesh);
-      const center = bbox.getCenter(new THREE.Vector3());
-
-      const sensorSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(SENSOR_RADIUS, 16, 16),
-        new THREE.MeshStandardMaterial({ color: 0xff0000 })
-      );
-
-      sensorSphere.position.set(center.x, center.y, bbox.max.z + 20);
-      sensorSphere.scale.setScalar(1 + localSensors.length * 0.2);
-
-      mesh.add(sensorSphere);
-    }
-  });
-}*/
 
 function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
   const SENSOR_RADIUS = 2;
@@ -407,29 +384,38 @@ function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
 
   const sensorMap = new Map();
 
-  // Group by sensor_id, keep latest reading for the selected date
-  outdoorSensors.forEach(sensor => {
+  // Group by sensor_id
+    outdoorSensors.forEach(sensor => {
     if (!sensor.sensor_id || !sensor.timestamp) return;
-    if (!showAll && !sensor.timestamp.startsWith(selectedDate)) return;
 
-    const existing = sensorMap.get(sensor.sensor_id);
-    if (!existing || new Date(sensor.timestamp) > new Date(existing.timestamp)) {
-      sensorMap.set(sensor.sensor_id, sensor);
+    if (!sensorMap.has(sensor.sensor_id)) {
+      sensorMap.set(sensor.sensor_id, []);
     }
+
+    sensorMap.get(sensor.sensor_id).push(sensor);
   });
 
-  console.log(sensorMap);
 
   // Render each filtered sensor
-  for (const sensor of sensorMap.values()) {
-    const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
-    const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+  for (const [sensorId, readings] of sensorMap.entries()) {
+    let selectedSensor = null;
+
+    if (showAll) {
+      selectedSensor = readings[0];
+    } else {
+      selectedSensor = readings.find(r => r.timestamp.startsWith(selectedDate));
+    }
+
+    if (!selectedSensor) continue;
+
+    const px = (selectedSensor.lon - CENTER_LON) * SCALE_FACTOR;
+    const py = (selectedSensor.lat - CENTER_LAT) * SCALE_FACTOR;
     const point = new THREE.Vector2(px, py);
 
     const insideAnyBuilding = polygons.some(poly => isPointInPolygon(poly, point));
     if (insideAnyBuilding) continue;
 
-    const color = sensorColors3D[sensor.sensor_type] || 0x999999;
+    const color = sensorColors3D[selectedSensor.sensor_type] || 0x999999;
 
     const sphere = new THREE.Mesh(
       new THREE.SphereGeometry(SENSOR_RADIUS, 8, 6),
@@ -438,9 +424,10 @@ function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
 
     sphere.position.set(px, py, 2);
     sphere.userData = {
-      sensorType: sensor.sensor_type,
+      sensorType: selectedSensor.sensor_type,
       group: "outdoor",
-      sensorId: sensor.sensor_id
+      sensorId: sensorId,
+      allReadings: readings
     };
 
     scene.add(sphere);

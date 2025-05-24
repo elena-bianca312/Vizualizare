@@ -150,6 +150,32 @@ export function setupBuildingInteraction(scene, camera, controls) {
       event.clientY <= rect.bottom
     );
   }
+
+  // debug to find out coordinates
+  /*canvas.addEventListener('mousemove', (event) => {
+    const SCALE_FACTOR = 100000;
+    const CENTER_LON = 26.045184;
+    const CENTER_LAT = 44.4349638;
+
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const planeZ = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const intersect = new THREE.Vector3();
+    raycaster.ray.intersectPlane(planeZ, intersect);
+
+    if (intersect) {
+      const x = intersect.x;
+      const y = intersect.y;
+      const lat = y / SCALE_FACTOR + CENTER_LAT;
+      const lon = x / SCALE_FACTOR + CENTER_LON;
+
+      console.log(`Mouse @ x: ${x.toFixed(2)}, y: ${y.toFixed(2)} => lat: ${lat.toFixed(6)}, lon: ${lon.toFixed(6)}`);
+    }
+  });*/
 }
 
 export function clearSelectedBuilding() {

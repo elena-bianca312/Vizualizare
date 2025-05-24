@@ -268,7 +268,12 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
     destroyCharts();
 
     const levels = feature.properties["building:levels"] || 1;
-    let sensors = selectedBuilding.userData.indoorSensors;
+    let sensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>
+        entry.readings.map(reading => ({
+          ...reading,
+          sensor_id: entry.sensor_id
+        }))
+    );
     console.log('Sensors:', sensors);
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
 
