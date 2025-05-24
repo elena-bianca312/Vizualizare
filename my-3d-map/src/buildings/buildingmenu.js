@@ -5,10 +5,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Group } from "@tweenjs/tween.js";
 import {clearSelectedBuilding, selectedBuilding} from "./buildingInteraction.js";
 import { createFloorTabs, createFloorSections, initializeFloorNavigation } from './floorManager.js';
-// import { createSensorChart, destroyCharts } from '../charts/sensorchart.js';
 import { createSensorChart, destroyCharts } from "../charts/createSensorChart.js";
 import { restoreOriginalCamera } from "../views/threeview.js";
 import { filterSensorDataByTimeRange, getTimeRangeDates } from "../assets/utils/timeUtils.js";
+import { destroyChartsForOtherFloors } from "../charts/chartUtils.js";
 // For animation handling
 const detailTweenGroup = new Group();
 
@@ -201,6 +201,7 @@ function updateDetailInfo(feature) {
         <span class="detail-value">${address}</span>
       </div>
     </div>
+    
     <div class="floor-container">
       ${createFloorTabs(levels)}
       ${createFloorSections(levels)}
@@ -265,7 +266,7 @@ function updateDetailInfo(feature) {
 
 function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, endDate) {
   try {
-    destroyCharts();
+    destroyCharts(); // This should destroy all charts globally if needed
 
     const levels = feature.properties["building:levels"] || 1;
     let sensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>
@@ -274,11 +275,17 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
           sensor_id: entry.sensor_id
         }))
     );
-    console.log('Sensors:', sensors);
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
 
-    console.log('Filtered sensors:', sensors);
+    // Get selected floor
+    const activeTab = document.querySelector('.floor-tab.active');
+    if (!activeTab) return;
+    const selectedFloor = activeTab.dataset.floor;
 
+    // Destroy charts for other floors and clear their containers
+    destroyChartsForOtherFloors(selectedFloor, levels);
+
+    // Now render only for the selected floor
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
       let floor = sensor.Floor;
       if (floor === undefined || floor === null || floor === '') {
@@ -291,64 +298,61 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       return acc;
     }, {});
 
-    for (let i = 1; i <= levels; i++) {
-      const floor = i.toString();
-      const container = document.getElementById(`charts-floor-${floor}`);
-      if (container) {
-        container.innerHTML = '';
-        const floorSensors = sensorsByFloor[floor] || [];
+    const container = document.getElementById(`charts-floor-${selectedFloor}`);
+    if (container) {
+      container.innerHTML = '';
+      window.floorCharts[selectedFloor] = []; // Reset chart refs for this floor
 
-        if (floorSensors.length === 0) {
-          createSensorChart(container, {
-            sensor_type: 'No Data',
-            unit: '',
-            datasets: []
-          }, startDate, endDate, `NoData_${floor}`);
-        } else {
-          // Group by sensor_type, then by sensor_id
-          const sensorsByType = floorSensors.reduce((acc, reading) => {
-            const type = reading.sensor_type;
-            if (!acc[type]) acc[type] = {};
-            const id = reading.sensor_id;
-            if (!acc[type][id]) {
-              acc[type][id] = {
-                sensor_id: id,
-                sensor_type: type,
-                unit: reading.unit,
-                data: []
-              };
-            }
-            const timestamp = new Date(reading.timestamp);
-            const value = parseFloat(reading.value);
-            if (!isNaN(timestamp) && !isNaN(value)) {
-              acc[type][id].data.push({ x: timestamp, y: value });
-            }
-            return acc;
-          }, {});
+      const floorSensors = sensorsByFloor[selectedFloor] || [];
+      if (floorSensors.length === 0) {
+        const chart = createSensorChart(container, {
+          sensor_type: 'No Data',
+          unit: '',
+          datasets: []
+        }, startDate, endDate, `NoData_${selectedFloor}`);
+        window.floorCharts[selectedFloor].push(chart);
+      } else {
+        // Group by sensor_type, then by sensor_id
+        const sensorsByType = floorSensors.reduce((acc, reading) => {
+          const type = reading.sensor_type;
+          if (!acc[type]) acc[type] = {};
+          const id = reading.sensor_id;
+          if (!acc[type][id]) {
+            acc[type][id] = {
+              sensor_id: id,
+              sensor_type: type,
+              unit: reading.unit,
+              data: []
+            };
+          }
+          const timestamp = new Date(reading.timestamp);
+          const value = parseFloat(reading.value);
+          if (!isNaN(timestamp) && !isNaN(value)) {
+            acc[type][id].data.push({ x: timestamp, y: value });
+          }
+          return acc;
+        }, {});
 
-          console.log('Sensors by type:', sensorsByType);
+        Object.entries(sensorsByType).forEach(([sensor_type, sensorsOfType]) => {
+          const colorPalette = ['#FF6384', '#36A2EB', '#4BC0C0', '#FFCE56', '#9966FF', '#888888'];
+          let colorIndex = 0;
+          const datasets = Object.values(sensorsOfType).map(sensor => ({
+            label: sensor.sensor_id,
+            data: sensor.data.sort((a, b) => a.x - b.x),
+            borderColor: colorPalette[colorIndex++ % colorPalette.length],
+            tension: 0.1,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            unit: sensor.unit,
+          }));
 
-          // For each sensor type, create one chart with multiple datasets (one per sensor_id)
-          Object.entries(sensorsByType).forEach(([sensor_type, sensorsOfType]) => {
-            const colorPalette = ['#FF6384', '#36A2EB', '#4BC0C0', '#FFCE56', '#9966FF', '#888888'];
-            let colorIndex = 0;
-            const datasets = Object.values(sensorsOfType).map(sensor => ({
-              label: sensor.sensor_id,
-              data: sensor.data.sort((a, b) => a.x - b.x),
-              borderColor: colorPalette[colorIndex++ % colorPalette.length],
-              tension: 0.1,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              unit: sensor.unit,
-            }));
-
-            createSensorChart(container, {
-              sensor_type,
-              unit: datasets[0]?.unit || '',
-              datasets
-            }, startDate, endDate, `${sensor_type}_${floor}`);
-          });
-        }
+          const chart = createSensorChart(container, {
+            sensor_type,
+            unit: datasets[0]?.unit || '',
+            datasets
+          }, startDate, endDate, `${sensor_type}_${selectedFloor}`);
+          window.floorCharts[selectedFloor].push(chart);
+        });
       }
     }
   } catch (error) {
@@ -361,8 +365,10 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
 
 
 
+
 // Make this function globally accessible for map.js
 window.loadAndRenderSensorData = loadAndRenderSensorData;
+window.floorCharts = {};
 
 /**
  * Close the detail view
