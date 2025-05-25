@@ -193,6 +193,10 @@ export function initThreeScene() {
     const outdoorGroup = document.getElementById('outdoor-types');
     outdoorGroup.style.display = show ? 'block' : 'none';
 
+    document.querySelectorAll('.sensor-type-toggle-3d').forEach(input => {
+      input.checked = show;
+    });
+
     scene.traverse(obj => {
       if (obj.isMesh && obj.userData?.group === "outdoor") {
         obj.visible = show;

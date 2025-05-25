@@ -111,12 +111,40 @@ document.addEventListener("DOMContentLoaded", function() {
   datePicker.addEventListener("change", () => {
     updateMarkers();
 
+    // Reset 3D legend checkboxes
+    document.getElementById("show-all-sensors").checked = false;
+    document.getElementById("toggle-outdoor").checked = true;
+    document.querySelectorAll(".sensor-toggle-3d").forEach(input => input.checked = true);
+    document.querySelectorAll(".sensor-type-toggle-3d").forEach(input => input.checked = true);
+
+    document.getElementById("outdoor-types").style.display = 'block';
+
+    document.getElementById("toggle-outdoor").disabled = false;
+    const toggles = document.querySelectorAll('.sensor-toggle-3d, .sensor-type-toggle-3d');
+    toggles.forEach(input => {
+      input.disabled = false;
+    });
+
     if (window.refreshThreeSpheres) {
       window.refreshThreeSpheres();
     }
   });
 
-  document.getElementById("show-all-sensors").addEventListener("change", () => {
+  document.getElementById("show-all-sensors").addEventListener("change", (e) => {
+    const isChecked = e.target.checked;
+
+    const toggles = document.querySelectorAll('.sensor-toggle-3d, .sensor-type-toggle-3d');
+    toggles.forEach(input => {
+      input.checked = true;
+      input.disabled = isChecked;
+    });
+
+    // Toggle outdoor group visibility
+    const outdoorToggle = document.getElementById("toggle-outdoor");
+    outdoorToggle.checked = true;
+    outdoorToggle.disabled = isChecked;
+    document.getElementById("outdoor-types").style.display = 'block';
+
     if (window.refreshThreeSpheres) window.refreshThreeSpheres();
   });
 
