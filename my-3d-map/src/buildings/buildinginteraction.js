@@ -136,7 +136,7 @@ export function setupBuildingInteraction(scene, camera, controls) {
 
       if (currentHighlight.userData?.group === "outdoor") {
         const sensorData = {
-          sensor_id: currentHighlight.userData.sensorId,
+          device_id: currentHighlight.userData.device_id,
           readings: currentHighlight.userData.allReadings
         };
 
@@ -150,7 +150,7 @@ export function setupBuildingInteraction(scene, camera, controls) {
         const allReadings = currentHighlight.userData.allReadings || [];
         const flattenedReadings = allReadings.map(r => ({
           ...r,
-          Floor: r.Floor ?? 'unknown'
+          floor: r.floor ?? 'unknown'
         }));
 
         window.selectedBuilding = {
@@ -203,10 +203,10 @@ export function setupBuildingInteraction(scene, camera, controls) {
     if (intersect) {
       const x = intersect.x;
       const y = intersect.y;
-      const lat = y / SCALE_FACTOR + CENTER_LAT;
-      const lon = x / SCALE_FACTOR + CENTER_LON;
+      const latitude = y / SCALE_FACTOR + CENTER_LAT;
+      const longitude = x / SCALE_FACTOR + CENTER_LON;
 
-      console.log(`Mouse @ x: ${x.toFixed(2)}, y: ${y.toFixed(2)} => lat: ${lat.toFixed(6)}, lon: ${lon.toFixed(6)}`);
+      console.log(`Mouse @ x: ${x.toFixed(2)}, y: ${y.toFixed(2)} => latitude: ${latitude.toFixed(6)}, longitude: ${lon.toFixed(6)}`);
     }
   });*/
 }

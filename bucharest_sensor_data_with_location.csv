@@ -1,4 +1,4 @@
-timestamp,location,sensor_id,sensor_type,value,unit,lat,lon
+timestamp,location,device_id,sensor_type,value,unit,latitude,longitude
 2024-12-13T18:45:53.023727,Bucharest,TEMP001,temperature,19.11,C,44.4268,26.1025
 2024-12-13T18:45:53.023727,Bucharest,TEMP002,temperature,18.89,C,44.429,26.104
 2024-12-13T18:45:53.023727,Bucharest,TEMP003,temperature,19.01,C,44.4305,26.108

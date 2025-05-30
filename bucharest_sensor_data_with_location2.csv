@@ -1,4 +1,4 @@
-timestamp,location,sensor_id,sensor_type,value,unit,lat,lon,IsIndoor,Floor
+timestamp,location,device_id,sensor_type,value,unit,latitude,longitude,is_indoor,floor
 2025-04-26T12:00:00Z,Bucharest,TEMP001,temperature,22.5,Celsius,44.4361376,26.0482506,True,1.0
 2025-04-26T12:05:00Z,Bucharest,TEMP001,temperature,25,Celsius,44.4350376,26.0471506,True,1.0
 2025-04-26T12:10:00Z,Bucharest,AIRQ001,air_quality,80.0,AQI,44.4350376,26.0474506,True,1.0

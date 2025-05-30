@@ -62,9 +62,9 @@ export function initThreeScene() {
         coords.push(coords[0]);
       }
       const points = coords.map(coord => {
-        const [lon, lat] = coord;
-        const px = (lon - CENTER_LON) * SCALE_FACTOR;
-        const py = (lat - CENTER_LAT) * SCALE_FACTOR;
+        const [longitude, latitude] = coord;
+        const px = (longitude - CENTER_LON) * SCALE_FACTOR;
+        const py = (latitude - CENTER_LAT) * SCALE_FACTOR;
         return new THREE.Vector2(px, py);
       });
       const shape = new THREE.Shape(points);
@@ -118,8 +118,8 @@ export function initThreeScene() {
 
     fetchAllSensors()
     .then(allSensors => {
-      const indoorSensors = allSensors.filter(s => s.IsIndoor);
-      const outdoorSensors = allSensors.filter(s => !s.IsIndoor);
+      const indoorSensors = allSensors.filter(s => s.is_indoor);
+      const outdoorSensors = allSensors.filter(s => !s.is_indoor);
 
       if (indoorSensors && Array.isArray(indoorSensors)) {
         addIndoorSensorSpheres(scene, buildingData, indoorSensors);
@@ -224,8 +224,8 @@ export function initThreeScene() {
     // Use same logic from init to redraw spheres
     fetchAllSensors()
       .then(allSensors => {
-        const indoorSensors = allSensors.filter(s => s.IsIndoor);
-        const outdoorSensors = allSensors.filter(s => !s.IsIndoor);
+        const indoorSensors = allSensors.filter(s => s.is_indoor);
+        const outdoorSensors = allSensors.filter(s => !s.is_indoor);
 
         addIndoorSensorSpheres(scene, buildingData, indoorSensors);
         addOutdoorSensorSpheres(scene, buildingData, outdoorSensors);
@@ -283,11 +283,11 @@ function loadTiles(center, scene) {
   }
 }
 
-function latLngToTileXY(lat, lng, zoom) {
+function latLngToTileXY(latitude, lng, zoom) {
   const x = ((lng + 180) / 360) * Math.pow(2, zoom);
   const y =
     ((1 -
-      Math.log(Math.tan((lat * Math.PI) / 180) + 1 / Math.cos((lat * Math.PI) / 180)) / Math.PI) /
+      Math.log(Math.tan((latitude * Math.PI) / 180) + 1 / Math.cos((latitude * Math.PI) / 180)) / Math.PI) /
       2) *
     Math.pow(2, zoom);
   return { x: Math.floor(x), y: Math.floor(y) };
@@ -307,20 +307,20 @@ function tileYToLat(y, zoom) {
 }
 
 function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
-  const SENSOR_RADIUS = 2;
+  const SENSOR_RADIUS = 4;
   const showAll = document.getElementById("show-all-sensors")?.checked;
   const selectedDate = window.selectedDate;
 
   const sensorMap = new Map();
 
   indoorSensors.forEach(sensor => {
-    if (!sensor.sensor_id || !sensor.timestamp) return;
+    if (!sensor.device_id || !sensor.timestamp) return;
 
-    if (!sensorMap.has(sensor.sensor_id)) {
-      sensorMap.set(sensor.sensor_id, []);
+    if (!sensorMap.has(sensor.device_id)) {
+      sensorMap.set(sensor.device_id, []);
     }
 
-    sensorMap.get(sensor.sensor_id).push(sensor);
+    sensorMap.get(sensor.device_id).push(sensor);
   });
 
   buildingData.forEach(({ mesh, shape }) => {
@@ -330,15 +330,15 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
 
     for (const [sensorId, readings] of sensorMap.entries()) {
       const anyReadingInside = readings.some(sensor => {
-        const px = (sensor.lon - CENTER_LON) * SCALE_FACTOR;
-        const py = (sensor.lat - CENTER_LAT) * SCALE_FACTOR;
+        const px = (sensor.longitude - CENTER_LON) * SCALE_FACTOR;
+        const py = (sensor.latitude - CENTER_LAT) * SCALE_FACTOR;
         return isPointInPolygon(polygon, new THREE.Vector2(px, py));
       });
 
       if (!anyReadingInside) continue;
 
       localSensors.push({
-        sensor_id: sensorId,
+        device_id: sensorId,
         readings: readings
       });
     }
@@ -348,7 +348,11 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
 
     if (localSensors.length > 0) {
       const hasValidTimestamp = showAll || localSensors.some(entry =>
-        entry.readings.some(r => r.timestamp?.startsWith(selectedDate))
+        entry.readings.some(r => {
+          if (!r.timestamp) return false;
+          const date = new Date(r.timestamp).toISOString().split("T")[0];
+          return date === selectedDate;
+        })
       );
 
       if (!hasValidTimestamp) return;
@@ -373,33 +377,33 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
 }
 
 function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
-  const SENSOR_RADIUS = 2;
+  const SENSOR_RADIUS = 4;
   const sensorColors3D = {
     temperature: 0xff0000,
     humidity: 0x66ccff,
-    air_quality: 0x66cc66,
-    wind_speed: 0xcc66ff
+    light: 0xfdde00,
+    sound: 0xcc66ff,
+    motion: 0xe3ad35,
+    pressure: 0x38d628
   };
   const selectedDate = window.selectedDate;
   const showAll = document.getElementById("show-all-sensors")?.checked;
-
   const polygons = buildingData.map(({ shape, mesh }) =>
     shape.getPoints().map(p => p.clone().add(mesh.position))
   );
 
   const sensorMap = new Map();
 
-  // Group by sensor_id
+  // Group by device_id
     outdoorSensors.forEach(sensor => {
-    if (!sensor.sensor_id || !sensor.timestamp) return;
+    if (!sensor.device_id || !sensor.timestamp) return;
 
-    if (!sensorMap.has(sensor.sensor_id)) {
-      sensorMap.set(sensor.sensor_id, []);
+    if (!sensorMap.has(sensor.device_id)) {
+      sensorMap.set(sensor.device_id, []);
     }
 
-    sensorMap.get(sensor.sensor_id).push(sensor);
+    sensorMap.get(sensor.device_id).push(sensor);
   });
-
 
   // Render each filtered sensor
   for (const [sensorId, readings] of sensorMap.entries()) {
@@ -408,13 +412,16 @@ function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
     if (showAll) {
       selectedSensor = readings[0];
     } else {
-      selectedSensor = readings.find(r => r.timestamp.startsWith(selectedDate));
+      selectedSensor = readings.find(r => {
+        const date = new Date(r.timestamp).toISOString().split("T")[0];
+        return date === selectedDate;
+      });
     }
 
     if (!selectedSensor) continue;
 
-    const px = (selectedSensor.lon - CENTER_LON) * SCALE_FACTOR;
-    const py = (selectedSensor.lat - CENTER_LAT) * SCALE_FACTOR;
+    const px = (selectedSensor.longitude - CENTER_LON) * SCALE_FACTOR;
+    const py = (selectedSensor.latitude - CENTER_LAT) * SCALE_FACTOR;
     const point = new THREE.Vector2(px, py);
 
     const insideAnyBuilding = polygons.some(poly => isPointInPolygon(poly, point));
@@ -431,10 +438,9 @@ function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
     sphere.userData = {
       sensorType: selectedSensor.sensor_type,
       group: "outdoor",
-      sensorId: sensorId,
+      device_id: sensorId,
       allReadings: readings
     };
-
     scene.add(sphere);
     }
 }

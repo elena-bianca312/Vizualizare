@@ -33,7 +33,7 @@ export function filterSensorDataByTimeRange(sensors, timeRange, referenceDate) {
   now.setDate(now.getDate() + 1);
   const rangeMs = timeRanges[timeRange] || 0;
   if (rangeMs === 0) return sensors;
-  const startDate = new Date(now.getTime() - rangeMs);
+  const startDate = new Date(now.getTime() + 1 - rangeMs);
   return sensors.filter(sensor => {
     const ts = new Date(sensor.timestamp);
     return ts >= startDate && ts <= now;

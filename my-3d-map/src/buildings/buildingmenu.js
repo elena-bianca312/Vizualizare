@@ -347,14 +347,16 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       sensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>
         entry.readings.map(reading => ({
           ...reading,
-          sensor_id: entry.sensor_id
+          device_id: entry.device_id
         }))
       );
     } else if (selectedBuilding.userData.group === 'outdoor') {
       sensors = selectedBuilding.userData.allReadings.map(reading => ({
         ...reading,
-        sensor_id: selectedBuilding.userData.sensorId
+        device_id: selectedBuilding.userData.device_id
       }));
+      console.log(sensors);
+      console.log(selectedBuilding.userData);
     }
 
     sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
@@ -380,7 +382,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
 
     // Group sensors by floor
     const sensorsByFloor = sensors.reduce((acc, sensor) => {
-      let floor = sensor.Floor;
+      let floor = sensor.floor;
       if (floor === undefined || floor === null || floor === '') {
         floor = 'unknown';
       } else {
@@ -405,14 +407,14 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
         }, startDate, endDate, `NoData_${selectedFloor}`);
         window.floorCharts[selectedFloor].push(chart);
       } else {
-        // Group by sensor_type, then by sensor_id
+        // Group by sensor_type, then by device_id
         const sensorsByType = floorSensors.reduce((acc, reading) => {
           const type = reading.sensor_type;
           if (!acc[type]) acc[type] = {};
-          const id = reading.sensor_id;
+          const id = reading.device_id;
           if (!acc[type][id]) {
             acc[type][id] = {
-              sensor_id: id,
+              device_id: id,
               sensor_type: type,
               unit: reading.unit,
               data: []
@@ -430,7 +432,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
           const colorPalette = ['#FF6384', '#36A2EB', '#4BC0C0', '#FFCE56', '#9966FF', '#888888'];
           let colorIndex = 0;
           const datasets = Object.values(sensorsOfType).map(sensor => ({
-            label: sensor.sensor_id,
+            label: sensor.device_id,
             data: sensor.data.sort((a, b) => a.x - b.x),
             borderColor: colorPalette[colorIndex++ % colorPalette.length],
             tension: 0.1,

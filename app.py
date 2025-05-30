@@ -1,4 +1,5 @@
 import numpy as np
+import requests
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import pandas as pd
@@ -6,9 +7,9 @@ import io
 import matplotlib.pyplot as plt
 from data_loader import load_sensor_data
 
+debug = True
 # Load data
-csv_file = "bucharest_sensor_data_with_location.csv"
-df = load_sensor_data(csv_file)
+csv_file = "output_sensor_data.csv"
 
 # Flask app setup
 app = Flask(__name__)
@@ -17,16 +18,41 @@ CORS(app)  # Enable CORS so frontend (Vite) can call Flask
 sensor_colors = {
     'temperature': 'red',
     'humidity': 'blue',
-    'air_quality': 'green',
-    'wind_speed': 'violet'
+    'light': 'gold',
+    'sound': 'violet',
+    'motion': 'orange',
+    'pressure': 'green'
 }
+
+API_BASE_URL = "http://localhost:8080/api/v1/sensor-data"
+
+def fetch_sensor_data():
+    if debug:
+        print("Debug mode: Loading data from CSV")
+        df = pd.read_csv(csv_file)
+    else:
+        print("Fetching data from API")
+        response = requests.get(API_BASE_URL)
+        response.raise_for_status()
+        data = response.json()
+        df = pd.DataFrame(data)
+
+    if 'floor' not in df.columns:
+        df['floor'] = 1
+    else:
+        df['floor'] = df['floor'].fillna(1)
+
+    return df
 
 @app.route('/all_sensors')
 def get_all_sensors():
-    df = pd.read_csv("bucharest_sensor_data_with_location3.csv")
-    df = df.replace({np.nan: None})
-    data = df.to_dict(orient='records')
-    return jsonify(data)
+    try:
+        df = fetch_sensor_data()
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        df = df.replace({np.nan: None})
+        return jsonify(df.to_dict(orient='records'))
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch data", "details": str(e)}), 500
 
 @app.route('/get_markers')
 def get_markers():
@@ -35,6 +61,8 @@ def get_markers():
     try:
         selected_date = pd.to_datetime(date_str).date()
         selected_hour = int(hour_str)
+        df = fetch_sensor_data()
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
     except Exception as e:
         return jsonify({"error": "Invalid date or hour", "details": str(e)}), 400
 
@@ -45,16 +73,16 @@ def get_markers():
 
     markers = []
     for _, sensor in filtered_data.iterrows():
-        color = sensor_colors.get(sensor['sensor_type'], 'gray')
+        color = sensor_colors.get(sensor['sensor_type'], 'grey')
         marker = {
-            "lat": sensor['lat'],
-            "lon": sensor['lon'],
+            "latitude": sensor['latitude'],
+            "longitude": sensor['longitude'],
             "popup": (
-                f"<b>Senzor ID:</b> {sensor['sensor_id']}<br>"
+                f"<b>Senzor ID:</b> {sensor['device_id']}<br>"
                 f"<b>Tip:</b> {sensor['sensor_type']}<br>"
                 f"<b>Valoare:</b> {sensor['value']} {sensor['unit']}<br>"
-                f"<a href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={sensor['lat']},{sensor['lon']}' target='_blank'>Street View</a><br>"
-                f"<a href='/download_daily_graph?sensor_id={sensor['sensor_id']}&date={sensor['timestamp'].date()}' target='_blank'>Download Graph</a>"
+                f"<a href='https://www.google.com/maps/@?api=1&map_action=pano&viewpoint={sensor['latitude']},{sensor['longitude']}' target='_blank'>Street View</a><br>"
+                f"<a href='/download_daily_graph?device_id={sensor['device_id']}&date={sensor['timestamp'].date()}' target='_blank'>Download Graph</a>"
             ),
             "sensor_type": sensor['sensor_type'],
             "color": color
@@ -65,27 +93,30 @@ def get_markers():
 
 @app.route('/download_daily_graph')
 def download_daily_graph():
-    sensor_id = request.args.get('sensor_id')
+    device_id = request.args.get('device_id')
     date_str = request.args.get('date')
-    if not sensor_id or not date_str:
-        return "Missing sensor_id or date", 400
+    if not device_id or not date_str:
+        return "Missing device_id or date", 400
 
     try:
         selected_date = pd.to_datetime(date_str).date()
     except Exception as e:
         return f"Invalid date: {str(e)}", 400
 
+    df = fetch_sensor_data()
+    df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+
     filtered_data = df[
-        (df['sensor_id'] == sensor_id) &
+        (df['device_id'] == device_id) &
         (df['timestamp'].dt.date == selected_date)
     ]
 
     if filtered_data.empty:
-        return f"No data available for sensor {sensor_id} on {date_str}", 404
+        return f"No data available for sensor {device_id} on {date_str}", 404
 
     fig, ax = plt.subplots(figsize=(8, 4))
     ax.plot(filtered_data['timestamp'], filtered_data['value'], marker='o', linestyle='-')
-    ax.set_title(f"Sensor {sensor_id} on {date_str}")
+    ax.set_title(f"Sensor {device_id} on {date_str}")
     ax.set_xlabel("Time")
     ax.set_ylabel("Value")
     ax.legend()
@@ -100,8 +131,38 @@ def download_daily_graph():
         buf,
         mimetype='image/png',
         as_attachment=True,
-        download_name=f"{sensor_id}_{date_str}.png"
+        download_name=f"{device_id}_{date_str}.png"
     )
+
+# def fetch_and_save_sensor_data(api_url, output_csv_path):
+#     try:
+#         print("ssss")
+#         response = requests.get(api_url)
+#         response.raise_for_status()
+#
+#         data = response.json()
+#
+#         df = pd.DataFrame(data)
+#         required_columns = [
+#             'timestamp', 'location', 'device_id', 'sensor_type', 'value',
+#             'unit', 'latitude', 'longitude', 'is_indoor', 'floor'
+#         ]
+#
+#         for col in required_columns:
+#             if col not in df.columns:
+#                 df[col] = None
+#
+#         df = df[required_columns]
+#         df.to_csv(output_csv_path, index=False)
+#         print(f"Data saved to {output_csv_path}")
+#
+#     except Exception as e:
+#         print(f"Failed to fetch or save data: {e}")
 
 if __name__ == '__main__':
     app.run(debug=True, port=8051)
+
+    # fetch_and_save_sensor_data(
+    #     "http://localhost:8080/api/v1/sensor-data",
+    #     "output_sensor_data.csv"
+    # )

@@ -1,11 +1,13 @@
 // 2D Map
 
-import markerIconDefault from '../assets/leaflets/images/marker-icon.png';
+import markerIconDefault from '../assets/leaflets/images/marker-icon-grey.png';
 import markerShadow from '../assets/leaflets/images/marker-shadow.png';
 import markerIconRed from '../assets/leaflets/images/marker-icon-red.png';
 import markerIconBlue from '../assets/leaflets/images/marker-icon-blue.png';
 import markerIconGreen from '../assets/leaflets/images/marker-icon-green.png';
 import markerIconViolet from '../assets/leaflets/images/marker-icon-violet.png';
+import markerIconGold from '../assets/leaflets/images/marker-icon-gold.png';
+import markerIconOrange from '../assets/leaflets/images/marker-icon-orange.png';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getTimeRangeDates } from '../assets/utils/timeUtils.js';
@@ -14,6 +16,8 @@ const colorIcons = {
   red: markerIconRed,
   blue: markerIconBlue,
   green: markerIconGreen,
+  gold: markerIconGold,
+  orange: markerIconOrange,
   violet: markerIconViolet
 };
 
@@ -21,8 +25,10 @@ document.addEventListener("DOMContentLoaded", function() {
   var sensorColors = {
     'temperature': 'red',
     'humidity': 'blue',
-    'air_quality': 'green',
-    'wind_speed': 'violet'
+    'light': 'gold',
+    'sound': 'violet',
+    'motion': 'orange',
+    'pressure': 'green'
   };
 
   L.Icon.Default.mergeOptions({
@@ -62,7 +68,7 @@ document.addEventListener("DOMContentLoaded", function() {
         // Add each marker to its corresponding layer group based on sensor_type
         data.forEach(function(markerData) {
           var icon = markerData.color ? getColoredIcon(markerData.color) : undefined;
-          var marker = L.marker([markerData.lat, markerData.lon], { icon: icon });
+          var marker = L.marker([markerData.latitude, markerData.longitude], { icon: icon });
           marker.bindPopup(markerData.popup);
           var sensorType = markerData.sensor_type;
           if (sensorLayerGroups[sensorType]) {
