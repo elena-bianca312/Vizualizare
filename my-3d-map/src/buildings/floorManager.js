@@ -42,7 +42,6 @@ document.querySelectorAll('.floor-tab').forEach(tab => {
     document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
 
-    // *** ADD THIS: Re-render the sensor data for the selected floor ***
     if (window.selectedBuilding && window.selectedFeature && window.loadAndRenderSensorData) {
       const { startDate, endDate } = getTimeRangeDates(
         window.selectedTimeRange || 'last_week',

@@ -176,7 +176,8 @@ function updateDetailInfo(feature) {
   // Calculate default date range (last week from the reference date)
   const defaultEndDate = window.selectedDate ? new Date(window.selectedDate) : new Date();
   const defaultStartDate = new Date(defaultEndDate);
-  defaultStartDate.setDate(defaultStartDate.getDate() - 7);
+  defaultStartDate.setDate(defaultStartDate.getDate() - 6);
+  defaultEndDate.setHours(23, 59, 59, 999);
 
   // Gather all unique sensor types
   let allSensors = [];
@@ -211,16 +212,15 @@ function updateDetailInfo(feature) {
       <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
         <div>
           <label for="start-date">From:</label>
-          <input type="date" id="start-date" 
+          <input type="date" id="start-date"
                  value="${defaultStartDate.toISOString().split('T')[0]}"
                  style="margin-left: 5px;">
         </div>
         <div>
           <label for="end-date">To:</label>
-          <input type="date" id="end-date" 
+          <input type="date" id="end-date"
                  value="${defaultEndDate.toISOString().split('T')[0]}"
-                 style="margin-left: 5px;"
-                 max="${new Date().toISOString().split('T')[0]}">
+                 style="margin-left: 5px;">
         </div>
         <button id="apply-date-range" style="padding: 5px 10px;">Apply</button>
       </div>
@@ -292,21 +292,9 @@ function updateDetailInfo(feature) {
     if (window.selectedDate !== window.previousReferenceDate) {
       const endDateInput = document.getElementById('end-date');
       const startDateInput = document.getElementById('start-date');
-      const newEndDate = new Date(window.selectedDate);
-      const oneWeekAgo = new Date(newEndDate);
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const oneYearAgo = new Date(newEndDate);
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      const maxDate = newEndDate.toISOString().split('T')[0];
-      const minDate = oneYearAgo.toISOString().split('T')[0];
-      endDateInput.max = maxDate;
-      endDateInput.min = minDate;
-      startDateInput.max = maxDate;
-      startDateInput.min = minDate;
-      endDateInput.value = maxDate;
-      startDateInput.value = oneWeekAgo.toISOString().split('T')[0];
+
       const startDate = new Date(startDateInput.value);
-      const endDate = new Date(window.selectedDate);
+      const endDate = new Date(endDateInput.value);
       endDate.setHours(23, 59, 59, 999);
       window.loadAndRenderSensorData(
         window.selectedFeature,
@@ -327,7 +315,7 @@ function updateDetailInfo(feature) {
 
   initializeFloorNavigation();
 
-  // Initial load with default date range
+
   loadAndRenderSensorData(
     window.selectedFeature,
     'custom',
@@ -335,6 +323,7 @@ function updateDetailInfo(feature) {
     defaultStartDate,
     defaultEndDate
   );
+
 }
 
 
@@ -363,7 +352,8 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       console.log(selectedBuilding.userData);
     }
 
-    sensors = filterSensorDataByTimeRange(sensors, timeRange, referenceDate);
+    sensors = filterSensorDataByTimeRange(sensors, timeRange, endDate);
+    console.log(startDate, endDate);
 
     // Filter by selected sensor types from dropdown
     let selectedTypes = window.selectedSensorTypes;
