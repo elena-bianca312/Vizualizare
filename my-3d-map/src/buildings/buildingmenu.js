@@ -358,9 +358,7 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
     // Filter by selected sensor types from dropdown
     let selectedTypes = window.selectedSensorTypes;
     if (!selectedTypes || selectedTypes.length === 0) {
-      // Fallback: show all
-      const allSensors = sensors.map(s => s.sensor_type);
-      selectedTypes = Array.from(new Set(allSensors));
+      sensors = [];
     }
     if (selectedTypes.length > 0) {
       sensors = sensors.filter(s => selectedTypes.includes(s.sensor_type));

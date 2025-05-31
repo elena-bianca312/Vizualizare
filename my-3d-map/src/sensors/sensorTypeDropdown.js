@@ -18,36 +18,35 @@ export function createSensorTypeDropdown(uniqueSensorTypes, onChange) {
         </div>
       </div>
     `;
-  
+
     return {
         html: dropdownHtml,
         init: function() {
           const dropdownBtn = document.getElementById('sensor-type-dropdown-btn');
           const dropdownList = document.getElementById('sensor-type-dropdown-list');
           const dropdownWrapper = document.getElementById('sensor-type-dropdown');
-    
+
           // Open/close on button click
           dropdownBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             dropdownList.style.display = dropdownList.style.display === 'block' ? 'none' : 'block';
           });
-    
+
           // Prevent closing when clicking inside the dropdown
           dropdownList.addEventListener('click', (e) => {
             e.stopPropagation();
           });
-    
+
           // Close when clicking outside
           document.addEventListener('click', (e) => {
             if (!dropdownWrapper.contains(e.target)) {
               dropdownList.style.display = 'none';
             }
           });
-    
-          // ... rest of your checkbox logic (unchanged) ...
+
           const allCheckbox = dropdownList.querySelector('input[value="__all__"]');
           const typeCheckboxes = Array.from(dropdownList.querySelectorAll('input[type="checkbox"]')).filter(cb => cb.value !== '__all__');
-    
+
           function updateDropdownLabel() {
             const checkedTypes = typeCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
             if (checkedTypes.length === typeCheckboxes.length) {
@@ -61,13 +60,13 @@ export function createSensorTypeDropdown(uniqueSensorTypes, onChange) {
               allCheckbox.checked = false;
             }
           }
-    
+
           allCheckbox.addEventListener('change', () => {
             typeCheckboxes.forEach(cb => cb.checked = allCheckbox.checked);
             updateDropdownLabel();
             onChange(getSelectedTypes());
           });
-    
+
           typeCheckboxes.forEach(cb => {
             cb.addEventListener('change', () => {
               if (typeCheckboxes.every(cb => cb.checked)) {
@@ -79,15 +78,17 @@ export function createSensorTypeDropdown(uniqueSensorTypes, onChange) {
               onChange(getSelectedTypes());
             });
           });
-    
+
           function getSelectedTypes() {
             const checked = typeCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
-            if (checked.length === 0 || checked.length === typeCheckboxes.length) {
+            if (checked.length === 0) {
+              return [];
+            } else if (checked.length === typeCheckboxes.length) {
               return uniqueSensorTypes;
             }
             return checked;
           }
-    
+
           // Initial call
           updateDropdownLabel();
           onChange(getSelectedTypes());
