@@ -252,15 +252,12 @@ function updateDetailInfo(feature) {
   scrollContainer.id = 'charts-scroll-container';
   scrollContainer.style.flex = '1 1 0';
   scrollContainer.style.overflowY = 'auto';
-  scrollContainer.style.maxHeight = '60vh';
   scrollContainer.style.marginTop = '16px';
 
-  const selectedTab = document.querySelector('.floor-tab.active');
-  const selectedFloor = selectedTab ? selectedTab.dataset.floor : "1";
   scrollContainer.innerHTML = "";
-  const floorDiv = document.getElementById(`charts-floor-${selectedFloor}`);
-  if (floorDiv) {
-    scrollContainer.appendChild(floorDiv);
+  const floorSections = document.querySelector('.floor-sections');
+  if (floorSections) {
+    scrollContainer.appendChild(floorSections);
   }
   infoPanel.appendChild(scrollContainer);
 
@@ -348,12 +345,9 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
         ...reading,
         device_id: selectedBuilding.userData.device_id
       }));
-      console.log(sensors);
-      console.log(selectedBuilding.userData);
     }
 
     sensors = filterSensorDataByTimeRange(sensors, timeRange, endDate);
-    console.log(startDate, endDate);
 
     // Filter by selected sensor types from dropdown
     let selectedTypes = window.selectedSensorTypes;
