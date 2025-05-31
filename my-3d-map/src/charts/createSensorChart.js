@@ -65,8 +65,7 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
   const downloadBtn = createButton('Download Graph', () => {
     const chartImage = chart.toBase64Image();
     const buildingName = (window.selectedFeature?.properties?.name || 'Building');
-    const floor = (container.dataset.floor || 'Unknown Floor');
-    const timeRange = (window.selectedTimeRange || 'Unknown Range');
+    const sensorName = sensorGroup.sensor_type || 'Sensor';
     const tempCanvas = document.createElement('canvas');
     const width = chart.width;
     const height = chart.height + 60;
@@ -74,15 +73,17 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
     tempCanvas.height = height;
     const ctx = tempCanvas.getContext('2d');
     ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, width, height);
     ctx.font = 'bold 16px Arial';
-    const title = `${buildingName} | Floor: ${floor} | Time Range: ${timeRange}`;
+    ctx.fillStyle = '#000';
+    const title = `${buildingName} - ${sensorName}`;
     const yAfterTitle = wrapCanvasText(ctx, title, 16, 28, width - 2 * 16, 22);
     const img = new window.Image();
     img.onload = function() {
         ctx.drawImage(img, 0, yAfterTitle, width, chart.height);
         const link = document.createElement('a');
         link.href = tempCanvas.toDataURL('image/png');
-        link.download = `${buildingName}_floor${floor}_${timeRange}.png`;
+        link.download = `${buildingName}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
