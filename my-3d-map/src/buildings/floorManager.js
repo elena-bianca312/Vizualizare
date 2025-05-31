@@ -43,17 +43,18 @@ document.querySelectorAll('.floor-tab').forEach(tab => {
     tab.classList.add('active');
 
     if (window.selectedBuilding && window.selectedFeature && window.loadAndRenderSensorData) {
-      const { startDate, endDate } = getTimeRangeDates(
-        window.selectedTimeRange || 'last_week',
-        window.selectedDate
-      );
-      window.loadAndRenderSensorData(
-        window.selectedFeature,
-        window.selectedTimeRange || 'last_week',
-        window.selectedDate,
-        startDate,
-        endDate
-      );
+      const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        endDate.setHours(23, 59, 59, 999);
+        window.loadAndRenderSensorData(
+          window.selectedFeature,
+          'custom',
+          window.selectedDate,
+          startDate,
+          endDate
+        );
     }
   });
 });
