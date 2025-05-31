@@ -342,6 +342,10 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
   try {
     destroyCharts();
 
+    if (!selectedBuilding || !selectedBuilding.userData) {
+      return;
+    }
+
     let sensors = [];
     if (selectedBuilding.userData.group === 'in') {
       sensors = selectedBuilding.userData.indoorSensors.flatMap(entry =>

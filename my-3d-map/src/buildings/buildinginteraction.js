@@ -185,10 +185,10 @@ export function setupBuildingInteraction(scene, camera, controls) {
   }
 
   // debug to find out coordinates
-  /*canvas.addEventListener('mousemove', (event) => {
+/*  canvas.addEventListener('mousemove', (event) => {
     const SCALE_FACTOR = 100000;
-    const CENTER_LON = 26.045184;
-    const CENTER_LAT = 44.4349638;
+    const CENTER_LON = 26.050477;
+    const CENTER_LAT = 44.438822;
 
     const rect = canvas.getBoundingClientRect();
     mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -206,7 +206,7 @@ export function setupBuildingInteraction(scene, camera, controls) {
       const latitude = y / SCALE_FACTOR + CENTER_LAT;
       const longitude = x / SCALE_FACTOR + CENTER_LON;
 
-      console.log(`Mouse @ x: ${x.toFixed(2)}, y: ${y.toFixed(2)} => latitude: ${latitude.toFixed(6)}, longitude: ${lon.toFixed(6)}`);
+      console.log(`Mouse @ x: ${x.toFixed(2)}, y: ${y.toFixed(2)} => latitude: ${latitude.toFixed(6)}, longitude: ${longitude.toFixed(6)}`);
     }
   });*/
 }

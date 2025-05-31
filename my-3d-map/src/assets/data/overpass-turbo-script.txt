@@ -1,6 +1,6 @@
 [out:json][timeout:25];
 (
-  way["building"](around:500, 44.4349638, 26.045184);
+  way["building"](around:1000, 44.438822, 26.050477);
 );
 out body;
 >;

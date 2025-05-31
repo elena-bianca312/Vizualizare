@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", function() {
     shadowUrl: markerShadow
   });
 
-  var map = L.map('map').setView([44.4349638, 26.045184], 13);
+  var map = L.map('map').setView([44.438822, 26.050477], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
@@ -161,7 +161,7 @@ document.addEventListener("DOMContentLoaded", function() {
     hourSlider.value = defaultHour;
     hourDisplay.textContent = "${defaultHour}:00";
     updateMarkers();
-    map.setView([44.4349638, 26.045184], 13);
+    map.setView([44.438822, 26.050477], 13);
   });
 
   var legendControl = L.control({ position: 'bottomright' });
@@ -200,8 +200,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     window.addEventListener('mapMoved', (e) => {
       const { center, zoom } = e.detail;
-      const x = (center.lng - 26.045184) * 100000;
-      const y = (center.lat - 44.4349638) * 100000;
+      const x = (center.lng - 26.050477) * 100000;
+      const y = (center.lat - 44.438822) * 100000;
       if (module.controls) {
         module.controls.target.set(x, y, 0);
         module.controls.update();

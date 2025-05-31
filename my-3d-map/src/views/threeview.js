@@ -7,8 +7,8 @@ import { setupBuildingInteraction } from "../buildings/buildingInteraction.js";
 import { Group } from "@tweenjs/tween.js";
 import { initBuildingDetailView } from "../buildings/buildingmenu.js";
 
-const CENTER_LON = 26.045184;
-const CENTER_LAT = 44.4349638;
+const CENTER_LON = 26.050477;
+const CENTER_LAT = 44.438822;
 const SCALE_FACTOR = 100000; // 1 unit = 0.00001 degrees
 
 export let camera, crosshair, controls;
@@ -235,7 +235,7 @@ export function initThreeScene() {
 
 function loadTiles(center, scene) {
   const zoom = 17;
-  const numTiles = 5;
+  const numTiles = 20;
   const centerTile = latLngToTileXY(center.lat, center.lng, zoom);
   const startX = centerTile.x - Math.floor(numTiles / 2);
   const startY = centerTile.y - Math.floor(numTiles / 2);
@@ -307,7 +307,7 @@ function tileYToLat(y, zoom) {
 }
 
 function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
-  const SENSOR_RADIUS = 4;
+  const SENSOR_RADIUS = 6;
   const showAll = document.getElementById("show-all-sensors")?.checked;
   const selectedDate = window.selectedDate;
 
@@ -377,7 +377,7 @@ function addIndoorSensorSpheres(scene, buildingData, indoorSensors) {
 }
 
 function addOutdoorSensorSpheres(scene, buildingData, outdoorSensors) {
-  const SENSOR_RADIUS = 4;
+  const SENSOR_RADIUS = 6;
   const sensorColors3D = {
     temperature: 0xff0000,
     humidity: 0x66ccff,
