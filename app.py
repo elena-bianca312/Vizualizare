@@ -9,7 +9,7 @@ from data_loader import load_sensor_data
 
 debug = True
 # Load data
-csv_file = "output_sensor_data.csv"
+csv_file = "bucharest_sensor_data_with_location2.csv"
 
 # Flask app setup
 app = Flask(__name__)
@@ -71,9 +71,25 @@ def get_markers():
         (df['timestamp'].dt.hour == selected_hour)
     ]
 
+    temp_data = filtered_data[filtered_data['sensor_type'] == 'temperature'].copy()
+    if not temp_data.empty and len(temp_data) >= 3:
+        min_val = temp_data['value'].astype(float).min()
+        max_val = temp_data['value'].astype(float).max()
+        range_val = max_val - min_val if max_val != min_val else 1  # Prevent division by zero
+        temp_data['normalized_value'] = (temp_data['value'].astype(float) - min_val) / range_val
+    else:
+        temp_data['normalized_value'] = None
+
     markers = []
     for _, sensor in filtered_data.iterrows():
         color = sensor_colors.get(sensor['sensor_type'], 'grey')
+        normalized_value = None
+
+        if sensor['sensor_type'] == 'temperature':
+            match = temp_data[temp_data['device_id'] == sensor['device_id']]
+            if not match.empty:
+                normalized_value = match['normalized_value'].values[0]
+
         marker = {
             "latitude": sensor['latitude'],
             "longitude": sensor['longitude'],
@@ -85,6 +101,7 @@ def get_markers():
                 f"<a href='/download_daily_graph?device_id={sensor['device_id']}&date={sensor['timestamp'].date()}' target='_blank'>Download Graph</a>"
             ),
             "sensor_type": sensor['sensor_type'],
+            "normalized_value": normalized_value,
             "color": color
         }
         markers.append(marker)

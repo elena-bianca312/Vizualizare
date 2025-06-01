@@ -9,6 +9,7 @@ import markerIconViolet from '../assets/leaflets/images/marker-icon-violet.png';
 import markerIconGold from '../assets/leaflets/images/marker-icon-gold.png';
 import markerIconOrange from '../assets/leaflets/images/marker-icon-orange.png';
 import L from 'leaflet';
+import 'leaflet.heat/dist/leaflet-heat.js';
 import 'leaflet/dist/leaflet.css';
 import { getTimeRangeDates } from '../assets/utils/timeUtils.js';
 
@@ -81,6 +82,7 @@ document.addEventListener("DOMContentLoaded", function() {
             sensorLayerGroups['others'].addLayer(marker);
           }
         });
+        updateTemperatureHeatmap(data);
       })
       .catch(error => console.error('Error fetching markers:', error));
   }
@@ -266,4 +268,36 @@ document.addEventListener("DOMContentLoaded", function() {
     });
     window.dispatchEvent(event);
   });
+
+  let temperatureHeatmap;
+
+  function updateTemperatureHeatmap(sensorData) {
+    if (temperatureHeatmap) {
+      map.removeLayer(temperatureHeatmap);
+      temperatureHeatmap = null;
+    }
+
+    const heatData = sensorData
+      .filter(sensor => sensor.sensor_type === 'temperature' && sensor.latitude && sensor.longitude && sensor.normalized_value >= 0)
+      .map(sensor => [sensor.latitude, sensor.longitude, parseFloat(sensor.normalized_value)]);
+
+    map.invalidateSize();
+    if (heatData.length >= 3) {
+      temperatureHeatmap = L.heatLayer(heatData, {
+        radius: 25,
+        blur: 10,
+        maxZoom: 18,
+        gradient: {
+          0: 'blue',
+          0.6: 'lime',
+          1: 'red'
+        }
+      }).addTo(map);
+      const ctx = document.querySelector('.leaflet-heatmap-layer canvas')?.getContext('2d');
+      console.log('Canvas content:', ctx?.getImageData(10, 10, 1, 1));
+      console.table(heatData);
+      console.log(temperatureHeatmap);
+    }
+  }
 });
+
