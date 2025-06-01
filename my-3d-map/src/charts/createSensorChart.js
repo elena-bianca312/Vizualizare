@@ -3,7 +3,7 @@ import zoomPlugin from 'chartjs-plugin-zoom';
 import 'chartjs-adapter-date-fns';
 import { noDataPlugin } from './chartPlugins.js';
 import { getChartOptions } from './chartConfig.js';
-import { createButton, createButtonRow, createCheckboxMenu, wrapCanvasText } from './chartUtils.js';
+import { createButton, createButtonRow, createCheckboxMenu, wrapCanvasText, fitToRange } from './chartUtils.js';
 
 Chart.register(TimeScale, LinearScale, LineController, LineElement, PointElement, Tooltip, zoomPlugin, noDataPlugin);
 
@@ -60,6 +60,10 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
     options: getChartOptions(sensorGroup, startDate, endDate, zoomOptions)
   });
 
+  // Fit to range button
+  const fitBtn = createButton('Fit to range', () => fitToRange(chart));
+  container.appendChild(fitBtn);
+
   // Buttons
   const resetBtn = createButton('Reset Zoom', () => chart.resetZoom());
   const downloadBtn = createButton('Download Graph', () => {
@@ -96,6 +100,59 @@ export function createSensorChart(container, sensorGroup, startDate, endDate, ca
 
   chartCache.set(key, chart);
   return chart;
+}
+
+function onFitToRange() {
+  // Get visible dataset indices
+  const visibleIndices = chart.data.datasets
+    .map((ds, i) => chart.isDatasetVisible(i) ? i : null)
+    .filter(i => i !== null);
+
+  let minX = null, maxX = null;
+  visibleIndices.forEach(idx => {
+    const data = chart.data.datasets[idx].data;
+    data.forEach(point => {
+      const x = (point.x instanceof Date) ? point.x : new Date(point.x);
+      if (!isNaN(x)) {
+        if (minX === null || x < minX) minX = x;
+        if (maxX === null || x > maxX) maxX = x;
+      }
+    });
+  });
+
+  if (!minX || !maxX) {
+    fitRangeDisplay.textContent = 'No data in selected sensors';
+    return;
+  }
+
+  // Format as YYYY-MM-DD
+  const minDateStr = minX.toISOString().split('T')[0];
+  const maxDateStr = maxX.toISOString().split('T')[0];
+
+  // Set the date pickers
+  const startInput = document.getElementById('start-date');
+  const endInput = document.getElementById('end-date');
+  if (startInput && endInput) {
+    startInput.value = minDateStr;
+    endInput.value = maxDateStr;
+  }
+
+  // Show the selected range
+  fitRangeDisplay.textContent = `Range: ${minDateStr} to ${maxDateStr}`;
+
+  // Reload the chart with the new range
+  if (window.selectedBuilding && window.loadAndRenderSensorData) {
+    const startDate = new Date(minDateStr);
+    const endDate = new Date(maxDateStr);
+    endDate.setHours(23, 59, 59, 999);
+    window.loadAndRenderSensorData(
+      window.selectedFeature,
+      'custom',
+      window.selectedDate,
+      startDate,
+      endDate
+    );
+  }
 }
 
 export function destroyCharts() {

@@ -79,3 +79,30 @@ export function destroyChartsForOtherFloors(selectedFloor, levels) {
     }
   }
 }
+
+export function fitToRange(chart) {
+  // Only use currently visible datasets
+  const visibleIndices = chart.data.datasets
+    .map((_index, i) => chart.isDatasetVisible(i) ? i : null)
+    .filter(i => i !== null);
+
+  let minX = null, maxX = null;
+  visibleIndices.forEach(idx => {
+    const data = chart.data.datasets[idx].data;
+    data.forEach(point => {
+      const x = (point.x instanceof Date) ? point.x : new Date(point.x);
+      if (!isNaN(x)) {
+        if (minX === null || x < minX) minX = x;
+        if (maxX === null || x > maxX) maxX = x;
+      }
+    });
+  });
+
+  if (typeof chart.zoomScale === 'function') {
+    chart.zoomScale('x', { min: minX, max: maxX });
+  } else if (chart.options.scales && chart.options.scales.x) {
+    chart.options.scales.x.min = minX;
+    chart.options.scales.x.max = maxX;
+    chart.update();
+  }
+}
