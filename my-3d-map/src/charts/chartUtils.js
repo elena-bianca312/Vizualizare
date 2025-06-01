@@ -67,19 +67,6 @@ export function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
   return currY + lineHeight;
 }
 
-export function destroyChartsForOtherFloors(selectedFloor, levels) {
-  for (let i = 1; i <= levels; i++) {
-    const floor = i.toString();
-    if (floor !== selectedFloor && window.floorCharts[floor]) {
-      window.floorCharts[floor].forEach(chart => chart.destroy());
-      window.floorCharts[floor] = [];
-      // Clear container HTML too
-      const container = document.getElementById(`charts-floor-${floor}`);
-      if (container) container.innerHTML = '';
-    }
-  }
-}
-
 export function fitToRange(chart) {
   // Only use currently visible datasets
   const visibleIndices = chart.data.datasets

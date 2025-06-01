@@ -8,8 +8,9 @@ import { createFloorTabs, createFloorSections, initializeFloorNavigation } from 
 import { createSensorChart, destroyCharts } from "../charts/createSensorChart.js";
 import { restoreOriginalCamera } from "../views/threeview.js";
 import { filterSensorDataByTimeRange } from "../assets/utils/timeUtils.js";
-import { destroyChartsForOtherFloors } from "../charts/chartUtils.js";
 import { createSensorTypeDropdown } from "../sensors/sensorTypeDropdown.js";
+import { createSensorRangesMenuButton, checkSensorTypeNotifications, removeSensorRangesMenu } from "../notifications/sensorRangesMenu.js";
+
 // For animation handling
 const detailTweenGroup = new Group();
 
@@ -169,7 +170,6 @@ function updateDetailInfo(feature) {
   const name = feature.properties.name || 'Unnamed Building';
   const levels = feature.properties["building:levels"] || 1;
   const buildingType = feature.properties.building || 'General';
-  const address = feature.properties.addr?.street || 'No address available';
   const isOutdoor = selectedBuilding.userData.group === 'outdoor';
 
   destroyCharts();
@@ -246,6 +246,9 @@ function updateDetailInfo(feature) {
       ${!isOutdoor ? createFloorSections(levels) : `<div class="chart-container" id="outdoor-charts"></div>`}
     </div>
   `;
+
+  removeSensorRangesMenu();
+  createSensorRangesMenuButton(feature);
 
   // Set up scroll container for charts (show only selected floor or outdoor)
   const scrollContainer = document.createElement('div');
@@ -359,8 +362,10 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       sensors = sensors.filter(s => selectedTypes.includes(s.sensor_type));
     }
 
+    window.lastSensorReadings = sensors;
+    checkSensorTypeNotifications(feature, sensors);
+
     const isOutdoor = selectedBuilding.userData.group === 'outdoor';
-    const levels = feature.properties["building:levels"] || 1;
     let selectedFloor = '1';
     if (!isOutdoor) {
       const activeTab = document.querySelector('.floor-tab.active');
@@ -477,6 +482,8 @@ function closeDetailView() {
   // Destroy all charts
   destroyCharts();
   window.selectedTimeRange = 'last_week';
+
+  removeSensorRangesMenu();
 
   // Reset camera position for next open
   detailCamera.position.set(0, 0, 50);
