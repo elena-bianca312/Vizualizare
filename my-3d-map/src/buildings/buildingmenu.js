@@ -8,8 +8,9 @@ import { createFloorTabs, createFloorSections, initializeFloorNavigation } from 
 import { createSensorChart, destroyCharts } from "../charts/createSensorChart.js";
 import { restoreOriginalCamera } from "../views/threeview.js";
 import { filterSensorDataByTimeRange } from "../assets/utils/timeUtils.js";
-import { destroyChartsForOtherFloors } from "../charts/chartUtils.js";
 import { createSensorTypeDropdown } from "../sensors/sensorTypeDropdown.js";
+import { createSensorRangesMenuButton, checkSensorTypeNotifications, removeSensorRangesMenu } from "../notifications/sensorRangesMenu.js";
+
 // For animation handling
 const detailTweenGroup = new Group();
 
@@ -169,7 +170,7 @@ function updateDetailInfo(feature) {
   const name = feature.properties.name || 'Unnamed Building';
   const levels = feature.properties["building:levels"] || 1;
   const buildingType = feature.properties.building || 'General';
-  const address = feature.properties.addr?.street || 'No address available';
+  const isOutdoor = selectedBuilding.userData.group === 'outdoor';
 
   destroyCharts();
 
@@ -208,7 +209,7 @@ function updateDetailInfo(feature) {
   // Info panel HTML
   infoPanel.innerHTML = `
     <div class="menu-header">
-      <h2>Sensor Data</h2>
+      <h2>${isOutdoor ? 'Sensor values' : 'Sensor Data'}</h2>
       <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
         <div>
           <label for="start-date">From:</label>
@@ -227,27 +228,29 @@ function updateDetailInfo(feature) {
       ${sensorDropdown.html}
     </div>
     <h2>${name}</h2>
-    <div class="building-details">
-      <div class="detail-row">
+    <div class="building-details" style="margin-bottom: 8px;">
+      ${!isOutdoor ? `
+      <div class="detail-row" style="margin-bottom: 8px;">
         <span class="detail-label">Type:</span>
         <span class="detail-value">${buildingType}</span>
       </div>
+    ` : ""}
+      ${!isOutdoor ? `
       <div class="detail-row">
         <span class="detail-label">Floors:</span>
         <span class="detail-value">${levels}</span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Address:</span>
-        <span class="detail-value">${address}</span>
-      </div>
+      </div> `: ""}
     </div>
     <div class="floor-container">
-      ${createFloorTabs(levels)}
-      ${createFloorSections(levels)}
+      ${!isOutdoor ? createFloorTabs(levels) : ""}
+      ${!isOutdoor ? createFloorSections(levels) : `<div class="chart-container" id="outdoor-charts"></div>`}
     </div>
   `;
 
-  // Set up scroll container for charts (show only selected floor)
+  removeSensorRangesMenu();
+  createSensorRangesMenuButton(feature);
+
+  // Set up scroll container for charts (show only selected floor or outdoor)
   const scrollContainer = document.createElement('div');
   scrollContainer.id = 'charts-scroll-container';
   scrollContainer.style.flex = '1 1 0';
@@ -255,9 +258,12 @@ function updateDetailInfo(feature) {
   scrollContainer.style.marginTop = '16px';
 
   scrollContainer.innerHTML = "";
-  const floorSections = document.querySelector('.floor-sections');
-  if (floorSections) {
-    scrollContainer.appendChild(floorSections);
+  if (!isOutdoor) {
+    const floorSections = document.querySelector('.floor-sections');
+    if (floorSections) scrollContainer.appendChild(floorSections);
+  } else {
+    const outdoorCharts = document.getElementById('outdoor-charts');
+    if (outdoorCharts) scrollContainer.appendChild(outdoorCharts);
   }
   infoPanel.appendChild(scrollContainer);
 
@@ -289,7 +295,6 @@ function updateDetailInfo(feature) {
     if (window.selectedDate !== window.previousReferenceDate) {
       const endDateInput = document.getElementById('end-date');
       const startDateInput = document.getElementById('start-date');
-
       const startDate = new Date(startDateInput.value);
       const endDate = new Date(endDateInput.value);
       endDate.setHours(23, 59, 59, 999);
@@ -310,8 +315,9 @@ function updateDetailInfo(feature) {
     originalCloseDetailView();
   };
 
-  initializeFloorNavigation();
-
+  if (!isOutdoor) {
+    initializeFloorNavigation();
+  }
 
   loadAndRenderSensorData(
     window.selectedFeature,
@@ -320,17 +326,15 @@ function updateDetailInfo(feature) {
     defaultStartDate,
     defaultEndDate
   );
-
 }
+
 
 
 function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, endDate) {
   try {
     destroyCharts();
 
-    if (!selectedBuilding || !selectedBuilding.userData) {
-      return;
-    }
+    if (!selectedBuilding || !selectedBuilding.userData) return;
 
     let sensors = [];
     if (selectedBuilding.userData.group === 'in') {
@@ -358,92 +362,101 @@ function loadAndRenderSensorData(feature, timeRange, referenceDate, startDate, e
       sensors = sensors.filter(s => selectedTypes.includes(s.sensor_type));
     }
 
-    const levels = feature.properties["building:levels"] || 1;
-    const activeTab = document.querySelector('.floor-tab.active');
-    if (!activeTab) return;
-    const selectedFloor = activeTab.dataset.floor;
+    window.lastSensorReadings = sensors;
+    checkSensorTypeNotifications(feature, sensors);
 
-    // Destroy charts for other floors and clear their containers
-    destroyChartsForOtherFloors(selectedFloor, levels);
-
-    // Group sensors by floor
-    const sensorsByFloor = sensors.reduce((acc, sensor) => {
-      let floor = sensor.floor;
-      if (floor === undefined || floor === null || floor === '') {
-        floor = 'unknown';
-      } else {
-        floor = parseInt(floor, 10).toString();
-      }
-      if (!acc[floor]) acc[floor] = [];
-      acc[floor].push(sensor);
-      return acc;
-    }, {});
-
-    const container = document.getElementById(`charts-floor-${selectedFloor}`);
-    if (container) {
-      container.innerHTML = '';
-      window.floorCharts[selectedFloor] = [];
-
-      const floorSensors = sensorsByFloor[selectedFloor] || [];
-      if (floorSensors.length === 0) {
-        const chart = createSensorChart(container, {
-          sensor_type: 'No Data',
-          unit: '',
-          datasets: []
-        }, startDate, endDate, `NoData_${selectedFloor}`);
-        window.floorCharts[selectedFloor].push(chart);
-      } else {
-        // Group by sensor_type, then by device_id
-        const sensorsByType = floorSensors.reduce((acc, reading) => {
-          const type = reading.sensor_type;
-          if (!acc[type]) acc[type] = {};
-          const id = reading.device_id;
-          if (!acc[type][id]) {
-            acc[type][id] = {
-              device_id: id,
-              sensor_type: type,
-              unit: reading.unit,
-              data: []
-            };
-          }
-          const timestamp = new Date(reading.timestamp);
-          const value = parseFloat(reading.value);
-          if (!isNaN(timestamp) && !isNaN(value)) {
-            acc[type][id].data.push({ x: timestamp, y: value });
-          }
-          return acc;
-        }, {});
-
-        Object.entries(sensorsByType).forEach(([sensor_type, sensorsOfType]) => {
-          const colorPalette = ['#FF6384', '#36A2EB', '#4BC0C0', '#FFCE56', '#9966FF', '#888888'];
-          let colorIndex = 0;
-          const datasets = Object.values(sensorsOfType).map(sensor => ({
-            label: sensor.device_id,
-            data: sensor.data.sort((a, b) => a.x - b.x),
-            borderColor: colorPalette[colorIndex++ % colorPalette.length],
-            tension: 0.1,
-            pointRadius: 4,
-            pointHoverRadius: 6,
-            unit: sensor.unit,
-          }));
-
-          const chart = createSensorChart(container, {
-            sensor_type,
-            unit: datasets[0]?.unit || '',
-            datasets
-          }, startDate, endDate, `${sensor_type}_${selectedFloor}`);
-          window.floorCharts[selectedFloor].push(chart);
-        });
-      }
+    const isOutdoor = selectedBuilding.userData.group === 'outdoor';
+    let selectedFloor = '1';
+    if (!isOutdoor) {
+      const activeTab = document.querySelector('.floor-tab.active');
+      if (!activeTab) return;
+      selectedFloor = activeTab.dataset.floor;
     }
+    renderCharts(sensors, {
+      isOutdoor,
+      selectedFloor,
+      startDate,
+      endDate
+    });
   } catch (error) {
-    console.error('Failed to load sensor data:', error);
+    console.error("Error in loadAndRenderSensorData:", error);
     document.querySelectorAll('.chart-container').forEach(container => {
       container.innerHTML = '<div class="error-message">Error loading data</div>';
     });
   }
 }
 
+function renderCharts(sensors, { isOutdoor, selectedFloor, startDate, endDate }) {
+  let container;
+  if (isOutdoor) {
+    container = document.getElementById('outdoor-charts');
+  } else {
+    container = document.getElementById(`charts-floor-${selectedFloor}`);
+  }
+  if (!container) return;
+  container.innerHTML = '';
+
+  // For indoor, filter to only the selected floor
+  let sensorsToChart = sensors;
+  if (!isOutdoor) {
+    sensorsToChart = sensors.filter(sensor => {
+      let floor = sensor.floor;
+      if (floor === undefined || floor === null || floor === '') floor = 'unknown';
+      else floor = parseInt(floor, 10).toString();
+      return floor === selectedFloor;
+    });
+  }
+
+  if (sensorsToChart.length === 0) {
+    createSensorChart(container, {
+      sensor_type: 'No Data',
+      unit: '',
+      datasets: []
+    }, startDate, endDate, `NoData_${isOutdoor ? 'outdoor' : selectedFloor}`);
+    return;
+  }
+
+  // Group by sensor_type, then by device_id
+  const sensorsByType = sensorsToChart.reduce((acc, reading) => {
+    const type = reading.sensor_type;
+    if (!acc[type]) acc[type] = {};
+    const id = reading.device_id;
+    if (!acc[type][id]) {
+      acc[type][id] = {
+        device_id: id,
+        sensor_type: type,
+        unit: reading.unit,
+        data: []
+      };
+    }
+    const timestamp = new Date(reading.timestamp);
+    const value = parseFloat(reading.value);
+    if (!isNaN(timestamp) && !isNaN(value)) {
+      acc[type][id].data.push({ x: timestamp, y: value });
+    }
+    return acc;
+  }, {});
+
+  Object.entries(sensorsByType).forEach(([sensor_type, sensorsOfType]) => {
+    const colorPalette = ['#FF6384', '#36A2EB', '#4BC0C0', '#FFCE56', '#9966FF', '#888888'];
+    let colorIndex = 0;
+    const datasets = Object.values(sensorsOfType).map(sensor => ({
+      label: sensor.device_id,
+      data: sensor.data.sort((a, b) => a.x - b.x),
+      borderColor: colorPalette[colorIndex++ % colorPalette.length],
+      tension: 0.1,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      unit: sensor.unit,
+    }));
+
+    createSensorChart(container, {
+      sensor_type,
+      unit: datasets[0]?.unit || '',
+      datasets
+    }, startDate, endDate, `${sensor_type}_${isOutdoor ? 'outdoor' : selectedFloor}`);
+  });
+}
 
 
 // Make this function globally accessible for map.js
@@ -469,6 +482,8 @@ function closeDetailView() {
   // Destroy all charts
   destroyCharts();
   window.selectedTimeRange = 'last_week';
+
+  removeSensorRangesMenu();
 
   // Reset camera position for next open
   detailCamera.position.set(0, 0, 50);
