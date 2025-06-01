@@ -1,6 +1,7 @@
 timestamp,location,device_id,sensor_type,value,unit,latitude,longitude,is_indoor,floor
-2025-04-26T12:00:00Z,Bucharest,TEMP001,temperature,22.5,Celsius,44.4361376,26.0482506,True,1.0
-2025-04-26T12:05:00Z,Bucharest,TEMP001,temperature,25,Celsius,44.4350376,26.0471506,True,1.0
-2025-04-26T12:10:00Z,Bucharest,AIRQ001,air_quality,80.0,AQI,44.4350376,26.0474506,True,1.0
-2025-04-26T12:15:00Z,Bucharest,TEMP001,temperature,55.0,dB,44.4350376,26.0474506,True,1.0
-2025-04-26T12:20:00Z,Bucharest,TEMP002,temperature,25,Celsius,44.4350376,26.0474506,True, 2.0
+2025-06-01T12:00:00Z,Bucharest,TEMP401,temperature,21.0,Celsius,44.4356000,26.0472000,True,1
+2025-06-01T12:00:00Z,Bucharest,TEMP402,temperature,22.0,Celsius,44.4354000,26.0476000,True,1
+2025-06-01T12:00:00Z,Bucharest,TEMP403,temperature,23.0,Celsius,44.4348000,26.0472000,True,1
+2025-06-01T12:00:00Z,Bucharest,TEMP404,temperature,24.0,Celsius,44.4354000,26.0468000,True,1
+2025-06-01T12:00:00Z,Bucharest,TEMP405,temperature,25.0,Celsius,44.4352000,26.0477000,True,1
+2025-06-01T12:00:00Z,Bucharest,TEMP406,temperature,26.0,Celsius,44.4352000,26.0467000,True,1

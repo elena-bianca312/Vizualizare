@@ -41,6 +41,9 @@ document.addEventListener("DOMContentLoaded", function() {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
+  const heatmapCanvas = L.canvas({ padding: 0.5 });
+  const heatmapLayer = L.layerGroup().addTo(map);
+
   var sensorLayerGroups = {};
   for (var sensorType in sensorColors) {
     sensorLayerGroups[sensorType] = L.layerGroup().addTo(map);
@@ -81,6 +84,31 @@ document.addEventListener("DOMContentLoaded", function() {
             sensorLayerGroups['others'].addLayer(marker);
           }
         });
+        const mockSensors = [
+  { latitude: 44.4356, longitude: 26.0472, value: 0.8 },
+  { latitude: 44.4352, longitude: 26.0477, value: 0.6 },
+  { latitude: 44.4350, longitude: 26.0471, value: 0.9 },
+  { latitude: 44.4349, longitude: 26.0468, value: 0.7 },
+  { latitude: 44.4351, longitude: 26.0473, value: 0.4 },
+  { latitude: 44.4354, longitude: 26.0474, value: 0.5 },
+  { latitude: 44.4355, longitude: 26.0470, value: 0.95 },
+  { latitude: 44.4353, longitude: 26.0469, value: 0.3 },
+  { latitude: 44.4348, longitude: 26.0476, value: 0.65 },
+  { latitude: 44.4347, longitude: 26.0473, value: 0.2 },
+  { latitude: 44.4358, longitude: 26.0476, value: 1.0 },
+  { latitude: 44.4359, longitude: 26.0471, value: 0.85 },
+  { latitude: 44.4351, longitude: 26.0479, value: 0.15 },
+  { latitude: 44.4346, longitude: 26.0469, value: 0.1 },
+  { latitude: 44.4345, longitude: 26.0475, value: 0.25 },
+  { latitude: 44.4350, longitude: 26.0478, value: 0.55 },
+  { latitude: 44.4356, longitude: 26.0468, value: 0.75 },
+  { latitude: 44.4352, longitude: 26.0467, value: 0.35 },
+  { latitude: 44.4353, longitude: 26.0475, value: 0.6 },
+  { latitude: 44.4357, longitude: 26.0473, value: 0.45 }
+];
+
+        //renderHeatmap(mockSensors);
+        renderHeatmap(data);
       })
       .catch(error => console.error('Error fetching markers:', error));
   }
@@ -167,18 +195,50 @@ document.addEventListener("DOMContentLoaded", function() {
   var legendControl = L.control({ position: 'bottomright' });
   legendControl.onAdd = function(map) {
     var div = L.DomUtil.create('div', 'legend');
-    div.innerHTML += "<strong>Legend</strong><br>";
+    div.innerHTML += "<strong>Legend</strong><br><form id='heatmap-radio-group'>";
+    div.innerHTML += `
+      <label>
+        <input type="radio" name="heatmap-sensor" class="heat-radio" value="none" checked>
+        <span style="opacity: 0.7;">(No heatmap)</span>
+      </label><br>`;
     for (var sensorType in sensorColors) {
       div.innerHTML +=
         `<label>
            <input type="checkbox" class="sensor-toggle" data-sensor="${sensorType}" checked>
+           <input type="radio" name="heatmap-sensor" class="heat-radio" value="${sensorType}">
            <img src="${colorIcons[sensorColors[sensorType]]}" width="12" height="20">
            ${sensorType}
          </label><br>`;
     }
+    div.innerHTML += "</form>";
     return div;
   };
   legendControl.addTo(map);
+
+  const colorbar = L.control({ position: 'bottomleft' });
+
+  colorbar.onAdd = function(map) {
+    const div = L.DomUtil.create('div', 'heatmap-colorbar');
+    div.innerHTML = `
+      <div style="
+        width: 200px;
+        height: 15px;
+        background: linear-gradient(to right,
+          #0000ff 0%,
+          #00ff00 50%,
+          #ff0000 100%);
+        border: 1px solid #aaa;
+        margin-bottom: 2px;
+      "></div>
+      <div style="display: flex; justify-content: space-between; font-size: 10px;">
+        <span>Low</span><span>High</span>
+      </div>
+    `;
+    return div;
+  };
+
+  colorbar.addTo(map);
+
 
   document.addEventListener("change", function(e) {
     if (e.target && e.target.classList.contains("sensor-toggle")) {
@@ -265,5 +325,96 @@ document.addEventListener("DOMContentLoaded", function() {
       detail: { center, zoom }
     });
     window.dispatchEvent(event);
+  });
+
+  function renderHeatmap(sensorData) {
+    // Remove previous canvas if exists
+    const existing = document.getElementById('heatmap-canvas');
+    if (existing) existing.remove();
+
+    const resizeAndDraw = () => {
+      const size = map.getSize();
+      canvas.width = size.x;
+      canvas.height = size.y;
+
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const seen = new Set();
+      sensorData.forEach(d => {
+        if (d.sensor_type !== selectedType) return;
+        const key = `${d.latitude},${d.longitude},${d.sensor_type}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+
+      const point = map.latLngToContainerPoint([d.latitude, d.longitude]);
+      drawHeatPoint(ctx, point.x, point.y, d.value);
+      });
+    };
+
+    map.off('zoomend', resizeAndDraw);
+    map.off('moveend', resizeAndDraw);
+    map.off('resize', resizeAndDraw);
+
+    // Create canvas overlay
+    const canvas = document.createElement('canvas');
+    canvas.id = 'heatmap-canvas';
+    canvas.style.position = 'absolute';
+    canvas.style.top = 0;
+    canvas.style.left = 0;
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = 400; // Above tile layer
+    document.getElementById('map').appendChild(canvas);
+
+    const selectedType = document.querySelector('input[name="heatmap-sensor"]:checked')?.value;
+
+    map.on('zoomend moveend resize', resizeAndDraw);
+    resizeAndDraw();
+  }
+
+
+
+
+  function drawHeatPoint(ctx, x, y, intensity) {
+    const rgbColor = getHeatmapColor(intensity);
+    const radius = 30;
+    const alpha = 0.4; // adjust transparency here
+    ctx.globalCompositeOperation = "lighter";
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grd.addColorStop(0, `rgba(${rgbColor}, ${alpha})`);
+    grd.addColorStop(1, `rgba(${rgbColor}, 0)`);
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    console.log('draw:', { intensity, rgbColor });
+    ctx.fill();
+  }
+
+  function getHeatmapColor(intensity) {
+    intensity = Math.max(0, Math.min(1, intensity));
+
+    const stops = [
+      { r: 0, g: 0, b: 255 },   // blue
+      { r: 0, g: 255, b: 0 }, // green
+      { r: 255, g: 0, b: 0 }    // red
+    ];
+
+    const numStops = stops.length - 1;
+    const scaled = intensity * numStops;
+    const i = Math.floor(scaled);
+    const t = scaled - i;
+
+    const c1 = stops[i];
+    const c2 = stops[i + 1] || c1;
+
+    const r = Math.round(c1.r + (c2.r - c1.r) * t);
+    const g = Math.round(c1.g + (c2.g - c1.g) * t);
+    const b = Math.round(c1.b + (c2.b - c1.b) * t);
+    return `${r},${g},${b}`;
+  }
+
+  document.addEventListener('change', function(e) {
+    if (e.target && e.target.classList.contains('heat-radio')) {
+      updateMarkers();
+    }
   });
 });
