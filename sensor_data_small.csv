@@ -1,0 +1,11 @@
+device_id,sensor_type,value,unit,timestamp,location,latitude,longitude,is_indoor,floor
+sensor-1,light,27.05,lux,2025-06-06 00:00:00,asd,44.433737,26.054027,False,0
+sensor-1,light,52.5,lux,2025-06-06 01:00:00,asd,44.433737,26.054027,False,1
+sensor-1,light,45.66,lux,2025-06-06 02:00:00,asd,44.433737,26.054027,False,0
+sensor-1,light,46.72,lux,2025-06-06 03:00:00,asd,44.433737,26.054027,False,3
+sensor-1,light,76.35,lux,2025-06-06 04:00:00,asd,44.433737,26.054027,False,2
+sensor-1,light,32.74,lux,2025-06-06 05:00:00,asd,44.433737,26.054027,False,0
+sensor-1,light,60.46,lux,2025-06-06 06:00:00,asd,44.433737,26.054027,False,1
+sensor-1,light,94.94,lux,2025-06-06 07:00:00,asd,44.433737,26.054027,False,2
+sensor-1,light,14.87,lux,2025-06-06 08:00:00,asd,44.433737,26.054027,False,3
+sensor-1,light,11.54,lux,2025-06-06 09:00:00,asd,44.433737,26.054027,False,2
